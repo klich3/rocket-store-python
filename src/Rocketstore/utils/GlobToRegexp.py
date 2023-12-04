@@ -13,10 +13,9 @@ import re
 
 
 class GlobToRegexp:
-
     def __init__(self, glob: str, **kwargs: any):
         if not isinstance(glob, str):
-            raise TypeError('Expected a string')
+            raise TypeError("Expected a string")
 
         # The regexp we are building, as a string.
         re_str = ""
@@ -24,7 +23,7 @@ class GlobToRegexp:
         # Whether we are matching so-called "extended" globs (like bash) and should
         # support single character matching, matching ranges of characters, group
         # matching, etc.
-        extended = kwargs.get('extended', False)
+        extended = kwargs.get("extended", False)
 
         # When globstar is _false_ (default), '/foo/*' is translated a regexp like
         # '^\/foo\/.*$' which will match any string beginning with '/foo/'
@@ -35,16 +34,95 @@ class GlobToRegexp:
         # these will not '/foo/bar/baz', '/foo/bar/baz.txt'
         # Lastly, when globstar is _true_, '/foo/**' is equivalent to '/foo/*' when
         # globstar is _false_
-        globstar = kwargs.get('globstar', False)
+        globstar = kwargs.get("globstar", False)
 
         # If we are doing extended matching, this boolean is true when we are inside
         # a group (e.g., {*.html,*.js}), and false otherwise.
-        in_group = False
+        inGroup = False
+
+        for i in range(len(glob)):
+            c = glob[i]
+
+            switch_dict = {
+                "/": True,
+                "$": True,
+                "^": True,
+                "+": True,
+                ".": True,
+                "(": True,
+                ")": True,
+                "=": True,
+                "!": True,
+                "|": True,
+                "?": extended,
+                "[": True,
+                "]": True,
+                "{": True,
+                "}": True,
+                ",": inGroup
+            }
+
+            if switch_dict.get(c, False):
+                re_str += "\\" + c
+
+            elif c == "?" and extended:
+                re_str += "\\?"
+
+            elif c == "[" and extended:
+                re_str += "\\["
+
+            elif c == "]" and extended:
+                re_str += "\\]"
+
+            elif c == "{" and extended:
+                inGroup = True
+                re_str += "\\("
+
+            elif c == "}" and extended:
+                inGroup = False
+                re_str += "\\)"
+
+            elif c == "," and inGroup:
+                re_str += "\\|"
+            elif c == "*":
+                # Move over all consecutive "*"'s.
+                # Also store the previous and next characters
+                prev_char = glob[i - 1] if i > 0 else None
+                star_count = 1
+
+                while i + 1 < len(glob) and glob[i + 1] == "*":
+                    star_count += 1
+                    i += 1
+
+                next_char = glob[i + 1] if i + 1 < len(glob) else None
+
+                if not globstar:
+                    # globstar is disabled, so treat any number of "*" as one
+                    re_str += ".*"
+
+                else:
+                    # globstar is enabled, so determine if this is a globstar segment
+                    is_globstar = (
+                        star_count > 1
+                        and (prev_char == "/" or prev_char is None)
+                        and (next_char == "/" or next_char is None)
+                    )
+
+                    if is_globstar:
+                        # it's a globstar, so match zero or more path segments
+                        re_str += "((?:[^/]*(?:\/|$))*)"
+                        # re_str += "(.*\/)?"
+                        i += 1  # move over the "/"
+                    else:
+                        # it's not a globstar, so only match one path segment
+                        re_str += "([^/]*)"
+            else:
+                re_str += c
 
         # RegExp flags (e.g., "i") to pass in to re.compile.
-        flags = kwargs.get('flags', "")
+        flags = kwargs.get("flags", "")
 
-        typeFlags = {
+        type_flags = {
             "a": re.A,
             "ascii": re.ASCII,
             "debug": re.DEBUG,
@@ -64,85 +142,29 @@ class GlobToRegexp:
         }
 
         # Ensure that the specified flags are valid
-        flags = typeFlags.get(flags, 0)
-
-        i = 0
-        for c in glob:
-            if c in ["/", "$", "^", "+", ".", "(", ")", "=", "!", "|"]:
-                re_str += "\\" + c
-
-            elif c == "?":
-                if extended:
-                    re_str += "."
-
-            elif c in ["[", "]"]:
-                if extended:
-                    re_str += c
-
-            elif c == "{":
-                if extended:
-                    in_group = True
-                    re_str += "("
-
-            elif c == "}":
-                if extended:
-                    in_group = False
-                    re_str += ")"
-
-            elif c == ",":
-                if in_group:
-                    re_str += "|"
-                else:
-                    re_str += "\\" + c
-
-            elif c == "*":
-                # Move over all consecutive "*"'s.
-                # Also store the previous and next characters
-                prev_char = glob[:i-1]
-                star_count = 1
-
-                while i + 1 < len(glob) and glob[i+1] == "*":
-                    star_count += 1
-                    i += 1
-
-                next_char = glob[i+1] if i + 1 < len(glob) else None
-
-                if not globstar:
-                    # globstar is disabled, so treat any number of "*" as one
-                    re_str += ".*"
-
-                else:
-                    # globstar is enabled, so determine if this is a globstar segment
-                    is_globstar = star_count > 1 and (
-                        prev_char == "/" or prev_char is None) and (
-                        next_char == "/" or next_char is None)
-
-                    if is_globstar:
-                        # it's a globstar, so match zero or more path segments
-                        re_str += "((?:[^/]*(?:\/|$))*)"
-                        # re_str += "(.*\/)?"
-                        i += 1  # move over the "/"
-                    else:
-                        # it's not a globstar, so only match one path segment
-                        re_str += "([^/]*)"
-            else:
-
-                re_str += c
-
-            i += 1
+        flags = type_flags.get(flags, 0)
 
         # When regexp 'g' flag is specified don't
         # constrain the regular expression with ^ & $
         if not flags or flags != re.DOTALL:
             re_str = "^" + re_str + "$"
 
+        self.flags = flags
+
         # Store the compiled regex as an instance variable
-        print("\n -> ", re_str, flags)
-        self.pattern = re.compile(re_str, flags)
+        print("\n -> ", glob, "\nprocessed: ", re_str,
+              "\nflags: ", flags, "\nextended: ", extended)
+        # self.pattern = re.compile(re_str, flags)
+        self.pattern = re_str
 
-    def match(self, str: str) -> bool:
-        print("\npattern: ", self.pattern,  "\nstr: ", str)
-        op = self.pattern.search(str)
-        print("res: ", op,  "\n----\n")
+    def match(self, string: str) -> bool:
+        print("\nMatch:\n\tpattern: ", self.pattern, "\n\tstring: ", string)
+        # op = self.pattern.search(string)
 
-        return op is not None
+        try:
+            op = re.search(self.pattern, string, self.flags)
+            print("res: ", op, "\n----\n")
+
+            return op is not None
+        except:
+            return False
