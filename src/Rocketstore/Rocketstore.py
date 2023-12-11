@@ -32,7 +32,7 @@ import glob
 import errno
 import shutil
 
-# import files
+from utils.files import file_lock, file_unlock, identifier_name_test, file_name_wash
 
 # Constants
 _ORDER = 0x01
@@ -51,26 +51,34 @@ _FORMAT_PHP = 0x08
 
 
 class Rocketstore:
-    def __init__(self, set_option=None):
+
+    def __init__(self, **set_option) -> None:
+        # https://docs.python.org/es/dev/library/tempfile.html
+        # TODO: use tempdir
         self.data_storage_area = os.path.join(os.path.sep, "tmp", "rsdb")
-        self.data_format = FORMAT_JSON
+
+        self.data_format = _FORMAT_JSON
         self.lock_retry_interval = 13
         self.lock_files = True
         self.key_cache = {}
 
         if set_option:
-            self.options(set_option)
+            self.options(**set_option)
 
-    async def options(self, options):
+    def options(self, **options) -> None:
+        '''
+        inital setup of Rocketstore
+        '''
+
         if "data_format" in options:
-            if options["data_format"] & (FORMAT_JSON | FORMAT_XML | FORMAT_NATIVE):
-                self.data_format = options["data_format"]
+            if options["data_format"] & (_FORMAT_JSON | _FORMAT_XML | _FORMAT_NATIVE):
+                self.data_format = options.get("data_format", _FORMAT_JSON)
             else:
                 raise ValueError(
                     f"Unknown data format: '{options['data_format']}'")
 
         if "data_storage_area" in options:
-            if isinstance(options["data_storage_area"], (str, int)):
+            if isinstance(options.get("data_storage_area"), str):
                 self.data_storage_area = os.path.abspath(
                     options["data_storage_area"])
                 try:
@@ -80,170 +88,253 @@ class Rocketstore:
                     if e.errno != errno.EEXIST:
                         raise Exception(
                             f"Unable to create data storage directory '{self.data_storage_area}': {e}")
-
             else:
                 raise ValueError("Data storage area must be a directory path")
 
-        if "lock_retry_interval" in options:
-            if isinstance(options["lock_retry_interval"], int):
-                self.lock_retry_interval = options["lock_retry_interval"]
+        if "lock_retry_interval" in options and isinstance(options["lock_retry_interval"], int):
+            self.lock_retry_interval = options.get("lock_retry_interval", 13)
 
-        if "lock_files" in options:
-            if isinstance(options["lock_files"], bool):
-                self.lock_files = options["lock_files"]
+        if "lock_files" in options and isinstance(options["lock_files"], bool):
+            self.lock_files = options.get("lock_files", True)
 
-    async def post(self, collection, key, record, flags=0):
-        collection = str(collection)
-        if len(collection) < 1:
+    def post(self, collection, key, record, flags=0) -> any:
+        '''
+        Post a data record (Insert or overwrite)
+        If keyCache exists for the given collection, entries are added.
+        '''
+        collection = str(collection) if collection else ""
+
+        if len(collection) < 1 or not collection:
             raise ValueError("No valid collection name given")
 
-        if not self._is_valid_identifier(collection):
+        if identifier_name_test(collection) == False:
             raise ValueError(
-                "Collection name contains illegal characters (For a JavaScript identifier)")
+                "Collection name contains illegal characters")
 
         # Remove wildcards (unix only)
-        key = str(key).replace("*", "").replace("?", "")
+        if isinstance(key, int):
+            key = file_name_wash(str(key))
+            if key:
+                key = str(key).replace("*", "").replace("?", "") if key else ""
 
-        if not isinstance(flags, int):
-            flags = 0
+        flags = flags if isinstance(flags, int) else 0
 
-        if len(key) < 1 or flags & ADD_AUTO_INC:
-            sequence = await self.sequence(collection)
-            key = f"{sequence}-{key}" if len(key) > 0 else str(sequence)
+        # Insert a sequence
+        if not key or flags & _ADD_AUTO_INC:
+            _sequence = self.sequence(collection)
+            key = f"{_sequence}-{key}" if key else str(_sequence)
 
-        if flags & ADD_GUID:
+        # Insert a Globally Unique IDentifier
+        if flags & _ADD_GUID:
             uid = hex(int(os.urandom(8).hex(), 16))[2:]
             guid = f"{uid[:8]}-{uid[8:12]}-4000-8{uid[12:15]}-{uid[15:]}"
             key = f"{guid}-{key}" if len(key) > 0 else guid
 
-        file_name = os.path.join(self.data_storage_area, collection, key)
+        # Write to file
+        dir_to_write = os.path.join(self.data_storage_area, collection)
+        file_name = os.path.join(dir_to_write, key)
 
-        if self.data_format & FORMAT_JSON:
-            if not os.path.exists(file_name):
-                os.makedirs(os.path.dirname(file_name), exist_ok=True)
+        if self.data_format & _FORMAT_JSON:
+            os.makedirs(dir_to_write, exist_ok=True)
+
             with open(file_name, "w") as file:
                 json.dump(record, file)
         else:
             raise ValueError("Sorry, that data format is not supported")
 
-        if collection not in self.key_cache:
-            self.key_cache[collection] = []
-        if key not in self.key_cache[collection]:
+        # Store key in cash
+        if isinstance(self.key_cache.get(collection), list) and key not in self.key_cache[collection]:
             self.key_cache[collection].append(key)
 
         return {"key": key, "count": 1}
 
-    async def get(self, collection, key, flags=0, min_time=None, max_time=None):
+    def get(self, collection, key, flags=0, min_time=None, max_time=None) -> any:
+        '''
+         * Get one or more records or list all collections (or delete it)
+
+            Generate a list:
+                get collection key => list of one key
+                get collection key wildcard => read to cash, filter to list
+                get collections => no collection + key wildcard => read (no cashing), filter to list.
+
+            Cashing:
+            Whenever readdir is called, keys are stores in keyCache, pr. collection.
+            The keyCache is maintained whenever a record is deleted or added.
+            One exception are searches in the root (list of collections etc.), which must be read each time.
+
+            NB: Files may have been removed manually and should be removed from the cache
+        '''
         keys = []
         uncache = []
         records = []
         count = 0
 
-        collection = str(collection) if collection else ""
-        if collection and not self._is_valid_identifier(collection):
-            raise ValueError(
-                "Collection name contains illegal characters (For a JavaScript identifier)")
+        collection = "" + str(collection or "") if collection else ""
 
-        key = self._clean_key(str(key)) if key else ""
+        if collection and len(collection) > 0 and identifier_name_test(collection) == False:
+            raise ValueError("Collection name contains illegal characters")
+
+        # Check key validity
+        key = file_name_wash("" + str(key))
+        key = key.replace("**", "*")  # remove globstars **
 
         scan_dir = os.path.join(
-            self.data_storage_area, collection) if collection else self.data_storage_area
+            self.data_storage_area, collection)
+
         wildcard = "*" in key or "?" in key or not key
 
-        if wildcard and not (flags & DELETE and not key):
-            try:
-                if collection and self.key_cache.get(collection):
-                    keys = self.key_cache[collection]
-                else:
-                    keys = os.listdir(scan_dir)
-                    if collection:
-                        self.key_cache[collection] = keys
+        if wildcard and not (flags & _DELETE and not key):
+            list = []
 
-                if key and key != "*":
-                    regex = re.compile(
-                        "^" + re.escape(key).replace("\\*",
-                                                     ".*").replace("\\?", ".") + "$"
-                    )
-                    keys = [k for k in keys if regex.match(k)]
-            except FileNotFoundError:
-                keys = []
+            # Read directory into cache
+            if not collection in self.key_cache:
+                try:
+                    list = os.listdir(scan_dir)
+
+                    # Update cahce
+                    if collection and list:
+                        self.key_cache[collection] = list
+                except FileNotFoundError:
+                    pass
+
+            if collection and collection in self.key_cache:
+                list = self.key_cache[collection]
+
+            # Wildcard search
+            if key and key == "*":
+                haystack = self.key_cache[collection] if collection else list
+                keys = [k for k in haystack if glob.fnmatch.fnmatch(k, key)]
+            else:
+                keys = list
+
+            # Order by key value
+            if flags & (_ORDER | _ORDER_DESC) and keys and len(keys) > 1 and not (flags & (_DELETE | (flags & _COUNT))):
+                keys.sort()
+                if flags & _ORDER_DESC:
+                    keys.reverse()
         else:
-            if collection and self.key_cache.get(collection) and key in self.key_cache[collection]:
-                keys = [key]
+            if collection and isinstance(self.key_cache.get(collection), list) and key not in self.key_cache[collection]:
+                keys = []
             elif key:
                 keys = [key]
 
         count = len(keys)
 
-        if keys and collection and not (flags & (KEYS | COUNT | DELETE)):
-            for k in keys:
-                file_name = os.path.join(scan_dir, k)
-                if self.data_format & FORMAT_JSON:
+        if len(keys) > 0 and collection and not (flags & (_KEYS | _COUNT | _DELETE)):
+            records = [None] * len(keys)
+
+            for i in range(len(keys)):
+                file_name = os.path.join(scan_dir, keys[i])
+
+                # Read JSON record file
+                if self.data_format & _FORMAT_JSON:
                     try:
-                        with open(file_name, "r") as file:
-                            records.append(json.load(file))
+                        with open(file_name, 'r') as file:
+                            records[i] = json.load(file)
                     except FileNotFoundError:
-                        uncache.append(k)
-                        records.append("*deleted*")
+                        uncache.append(keys[i])
+                        records[i] = "*deleted*"
                         count -= 1
+                    except json.JSONDecodeError:
+                        records[i] = ""
                 else:
                     raise ValueError(
                         "Sorry, that data format is not supported")
 
-        elif flags & DELETE:
-            if not collection and not key:
-                if os.path.exists(self.data_storage_area):
-                    shutil.rmtree(self.data_storage_area)
-                    self.key_cache = {}
-                    count = 1
+        elif flags & _DELETE:
+            if not collection and not key or collection == "" and key == "":
+                # Delete database
+                try:
+                    if os.path.exists(self.data_storage_area):
+                        shutil.rmtree(self.data_storage_area)
+                        self.key_cache = {}
+                        count = 1
+                except Exception as e:
+                    print(f"Error deleting directory: {e}")
+                    raise e
             elif collection and not key:
-                collection_dir = os.path.join(
-                    self.data_storage_area, collection)
-                if os.path.exists(collection_dir):
-                    shutil.rmtree(collection_dir)
-                    self.key_cache.pop(collection, None)
-                    count = 1
+                # Delete collection and sequences
+                fileName = os.path.join(self.data_storage_area, collection)
+                count = 0
+
+                if os.path.exists(fileName):
+                    statCheck = os.stat(fileName)
+
+                    if statCheck.is_dir():
+                        # Delete collection folder
+                        shutil.rmtree(fileName)
+                        count += 1
+
+                    # Delete single file
+                    fileNameSeq = f"{fileName}_seq"
+                    if os.path.exists(fileNameSeq):
+                        os.remove(fileNameSeq)
+                        count += 1
+
+                del self.key_cache[collection]
+
+            # Delete records and  ( collection and sequences found with wildcards )
             elif keys:
-                for k in keys:
-                    file_name = os.path.join(scan_dir, k)
-                    os.remove(file_name)
-                    uncache.append(k)
+                for key in keys:
+                    os.remove(os.path.join(scan_dir, key))
+                    if collection:
+                        uncache = [key]
+                    else:
+                        uncache.extend([key])
 
+        # Clean up cache and keys
         if uncache:
-            if collection and self.key_cache.get(collection):
+            if collection in self.key_cache:
                 self.key_cache[collection] = [
-                    k for k in self.key_cache[collection] if k not in uncache]
-            keys = [k for k in keys if k not in uncache]
-            records = [r for r in records if r != "*deleted*"]
+                    e for e in self.key_cache[collection] if e not in uncache]
 
-        result = {"count": count}
-        if count and keys and not (flags & (KEYS | COUNT | DELETE)):
-            result["key"] = keys
+            if keys != self.key_cache.get(collection):
+                keys = [e for e in keys if e not in uncache]
+
+            if records:
+                records = [e for e in records if e != "*deleted*"]
+
+        result = {'count': count}
+        if result['count'] and keys and not (flags & (_COUNT | _DELETE)):
+            result['key'] = keys
         if records:
-            result["result"] = records
+            result['result'] = records
 
         return result
 
-    async def delete(self, collection, key):
-        return await self.get(collection, key, DELETE)
+    def delete(self, collection="", key=""):
+        '''
+        Delete one or more records or collections
+        '''
+        return self.get(collection=collection, key=key, flags=_DELETE)
 
-    async def sequence(self, seq_name):
+    def sequence(self, seq_name: str) -> int:
+        '''
+        Get and auto incremented sequence or create it
+        '''
         if not seq_name:
             raise ValueError("Sequence name is invalid")
 
-        name = self._clean_key(seq_name)
-        if not name:
+        sequence = -1
+
+        name = file_name_wash(seq_name)
+        name = seq_name.replace("*", "").replace("?", "")
+
+        if len(name) < 1 or not isinstance(name, str):
             raise ValueError("Sequence name is invalid")
 
         name += "_seq"
         file_name = os.path.join(self.data_storage_area, name)
 
-        if self.lock_files:
-            self._file_lock(file_name)
+        # TODO: lock file
+        # if self.lock_files:
+        #    file_lock(file_name)
 
         try:
             with open(file_name, "r") as file:
-                sequence = int(file.read()) + 1
+                data = file.read()
+            sequence = int(data) + 1
+
             with open(file_name, "w") as file:
                 file.write(str(sequence))
         except FileNotFoundError:
@@ -258,22 +349,9 @@ class Rocketstore:
         except Exception as e:
             print(f"Error reading/writing file: {e}")
             raise e
-        finally:
-            if self.lock_files:
-                self._file_unlock(file_name)
+
+        # TODO: unlock file
+        # if self.lock_files:
+        #    file_unlock(file_name)
 
         return sequence
-
-    def _clean_key(self, key):
-        return key.replace("*", "").replace("?", "")
-
-    def _is_valid_identifier(self, identifier):
-        return re.match("^[a-zA-Z_][a-zA-Z0-9_]*$", identifier) is not None
-
-    def _file_lock(self, file_name):
-        # Implement file locking logic here
-        pass
-
-    def _file_unlock(self, file_name):
-        # Implement file unlocking logic here
-        pass
