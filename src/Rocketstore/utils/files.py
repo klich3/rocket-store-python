@@ -21,7 +21,7 @@ import time
 
 
 def file_lock(path_folder, file, lock_retry_interval=13):
-    print("fileLock", path_folder, file)
+    # print("fileLock", path_folder, file)
     while True:
         try:
             source_path = os.path.join(path_folder, file)
@@ -30,20 +30,29 @@ def file_lock(path_folder, file, lock_retry_interval=13):
             if not os.path.exists(os.path.join(path_folder, "lockfile")):
                 os.makedirs(os.path.join(path_folder, "lockfile"))
 
-            os.symlink(source_path, target_path)
-            return
-        except FileExistsError:
-            time.sleep(lock_retry_interval)
+            if not os.path.exists(target_path):
+                os.symlink(source_path, target_path)
+                break
+            else:
+                time.sleep(lock_retry_interval)
+        except Exception as err:
+            print("[390] -> filelock -> ", err)
+            break
 
 
 def file_unlock(path_folder, file):
-    print("fileUnlock", path_folder, file)
+    # print("fileUnlock", path_folder, file)
     file_lock_name = os.path.join(path_folder, "lockfile", file)
-    if os.path.exists(file_lock_name):
+    if not os.path.exists(file_lock_name):
+        return
+
+    try:
         os.unlink(file_lock_name)
+    except Exception as err:
+        print("[410] file unlock ->", err)
 
 
-def identifier_name_test(name: str) -> bool:
+def identifier_name_test(name: any) -> bool:
     '''
     check match name
     '''

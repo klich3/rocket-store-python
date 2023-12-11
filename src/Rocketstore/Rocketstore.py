@@ -113,9 +113,8 @@ class Rocketstore:
 
         # Remove wildcards (unix only)
         if isinstance(key, int):
-            key = file_name_wash(str(key))
-            if key:
-                key = str(key).replace("*", "").replace("?", "") if key else ""
+            key = file_name_wash(
+                str(key)+"").replace(r"[\*\?]", "") if key else ""
 
         flags = flags if isinstance(flags, int) else 0
 
@@ -149,6 +148,8 @@ class Rocketstore:
         return {"key": key, "count": 1}
 
     def get(self, collection, key, flags=0, min_time=None, max_time=None) -> any:
+        print("\n-->", collection, key, flags, min_time, max_time)
+
         '''
          * Get one or more records or list all collections (or delete it)
 
@@ -175,11 +176,11 @@ class Rocketstore:
             raise ValueError("Collection name contains illegal characters")
 
         # Check key validity
-        key = file_name_wash("" + str(key))
-        key = key.replace("**", "*")  # remove globstars **
+        key = file_name_wash("" + str(key)).replace(r"[*]{2,}", "*")
 
+        # Scan directory
         scan_dir = os.path.join(
-            self.data_storage_area, collection)
+            self.data_storage_area, collection or "")
 
         wildcard = "*" in key or "?" in key or not key
 
@@ -187,21 +188,21 @@ class Rocketstore:
             list = []
 
             # Read directory into cache
-            if not collection in self.key_cache:
+            if not collection or not collection in self.key_cache:
                 try:
                     list = os.listdir(scan_dir)
 
                     # Update cahce
-                    if collection and list:
+                    if collection and len(list) > 0:
                         self.key_cache[collection] = list
-                except FileNotFoundError:
-                    pass
+                except e as Exception:
+                    raise e
 
             if collection and collection in self.key_cache:
                 list = self.key_cache[collection]
 
             # Wildcard search
-            if key and key == "*":
+            if key and key != "*":
                 haystack = self.key_cache[collection] if collection else list
                 keys = [k for k in haystack if glob.fnmatch.fnmatch(k, key)]
             else:
@@ -326,9 +327,8 @@ class Rocketstore:
         name += "_seq"
         file_name = os.path.join(self.data_storage_area, name)
 
-        # TODO: lock file
-        # if self.lock_files:
-        #    file_lock(file_name)
+        if self.lock_files:
+            file_lock(self.data_storage_area, name)
 
         try:
             with open(file_name, "r") as file:
@@ -350,8 +350,7 @@ class Rocketstore:
             print(f"Error reading/writing file: {e}")
             raise e
 
-        # TODO: unlock file
-        # if self.lock_files:
-        #    file_unlock(file_name)
+        if self.lock_files:
+            file_unlock(self.data_storage_area, name)
 
         return sequence
