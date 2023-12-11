@@ -119,7 +119,7 @@ class Rocketstore:
         flags = flags if isinstance(flags, int) else 0
 
         # Insert a sequence
-        if not key or flags & _ADD_AUTO_INC:
+        if len(key) < 1 or flags & _ADD_AUTO_INC:
             _sequence = self.sequence(collection)
             key = f"{_sequence}-{key}" if key else str(_sequence)
 
@@ -182,7 +182,7 @@ class Rocketstore:
         scan_dir = os.path.join(
             self.data_storage_area, collection or "")
 
-        wildcard = "*" in key or "?" in key or not key
+        wildcard = not "*" in key or not "?" in key or not key
 
         if wildcard and not (flags & _DELETE and not key):
             list = []

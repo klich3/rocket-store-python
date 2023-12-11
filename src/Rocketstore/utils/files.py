@@ -66,21 +66,17 @@ def file_name_wash(name, preserve_wildcards=False) -> str:
     '''
     Internal functions File name washer
     '''
-    if os.name == "nt":
-        if not preserve_wildcards:
-            name = re.sub(r'\*\?', '', name)
+    if os.name == 'nt':
+        n1 = name.replace(r'\*\?', '') if preserve_wildcards == False else name
 
-        name = (
-            re.sub(r'[\/<>\\:\|"]', '', name)
-            .replace(r'[\x00-\x1f\x80-\x9f]', '')
-            .replace(r'^\.+$', '')
-            .replace(r'^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$', '')
-            .replace(r'[. ]+$', '')
-        )
+        n2 = re.sub(r'[\/<>\\:\|"]', '', n1)
+        n2 = re.sub(r'[\x00-\x1f\x80-\x9f]', '', n2)
+        n2 = re.sub(r'^\.+$', '', n2)
+        n2 = re.sub(
+            r'^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$', '', n2, flags=re.IGNORECASE)
+        n2 = re.sub(r'[\. ]+$', '', n2)
 
-        return name[:255]
+        return n2[:255]
     else:
-
-        out = name.replace(r"[\/\\\x00~]", "")
-        out = out.replace(r'\.{2,}', '')
-        return out
+        # remove / \ ~ zero and double
+        return name.replace(r'[\/\\\x00~]', '').replace(r'[.]{2,}', '')
