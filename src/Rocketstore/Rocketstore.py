@@ -21,7 +21,7 @@ Terminology:
   +------------------+---------------+------------------------+
   | key              |  key          |  file name             |
   +------------------+---------------+------------------------+
-  | record           |  row          |  file                  |
+  | record           |  row          |  file content          |
   +------------------+---------------+------------------------+
 """
 
@@ -49,6 +49,8 @@ _FORMAT_NATIVE = 0x02
 _FORMAT_XML = 0x04
 _FORMAT_PHP = 0x08
 
+# TODO: new binary json format
+
 
 class Rocketstore:
 
@@ -68,10 +70,16 @@ class Rocketstore:
     def options(self, **options) -> None:
         '''
         inital setup of Rocketstore
+        @Sample:
+            from Rocketstore import Rocketstore, _FORMAT_JSON, _FORMAT_NATIVE
+            rs.options(**{
+                "data_storage_area": "./",
+                "data_format": _FORMAT_NATIVE
+            })
         '''
 
         if "data_format" in options:
-            if options["data_format"] & (_FORMAT_JSON | _FORMAT_XML | _FORMAT_NATIVE):
+            if options["data_format"] in [_FORMAT_JSON, _FORMAT_XML, _FORMAT_NATIVE]:
                 self.data_format = options.get("data_format", _FORMAT_JSON)
             else:
                 raise ValueError(
@@ -119,7 +127,7 @@ class Rocketstore:
         flags = flags if isinstance(flags, int) else 0
 
         # Insert a sequence
-        if not key or flags & _ADD_AUTO_INC:
+        if len(key) < 1 or flags & _ADD_AUTO_INC:
             _sequence = self.sequence(collection)
             key = f"{_sequence}-{key}" if key else str(_sequence)
 
@@ -170,7 +178,7 @@ class Rocketstore:
         records = []
         count = 0
 
-        collection = "" + str(collection or "") if collection else ""
+        collection = str("" + collection or "") if collection else ""
 
         if collection and len(collection) > 0 and identifier_name_test(collection) == False:
             raise ValueError("Collection name contains illegal characters")
@@ -182,7 +190,7 @@ class Rocketstore:
         scan_dir = os.path.join(
             self.data_storage_area, collection or "")
 
-        wildcard = "*" in key or "?" in key or not key
+        wildcard = not "*" in key or not "?" in key or not key
 
         if wildcard and not (flags & _DELETE and not key):
             list = []
@@ -190,12 +198,16 @@ class Rocketstore:
             # Read directory into cache
             if not collection or not collection in self.key_cache:
                 try:
+                    # list = os.scandir(scan_dir)
                     list = os.listdir(scan_dir)
+                    print("->", list, list)
 
                     # Update cahce
                     if collection and len(list) > 0:
                         self.key_cache[collection] = list
-                except e as Exception:
+                except FileNotFoundError as f:
+                    raise f
+                except Exception as e:
                     raise e
 
             if collection and collection in self.key_cache:
