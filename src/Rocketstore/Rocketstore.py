@@ -31,6 +31,7 @@ import re
 import glob
 import errno
 import shutil
+import time
 
 from utils.files import file_lock, file_unlock, identifier_name_test, file_name_wash
 
@@ -54,11 +55,11 @@ _FORMAT_PHP = 0x08
 
 class Rocketstore:
 
+    data_storage_area: str = os.path.join(os.path.sep, "tmp", "rsdb")
+
     def __init__(self, **set_option) -> None:
         # https://docs.python.org/es/dev/library/tempfile.html
         # TODO: use tempdir
-        self.data_storage_area = os.path.join(os.path.sep, "tmp", "rsdb")
-
         self.data_format = _FORMAT_JSON
         self.lock_retry_interval = 13
         self.lock_files = True
@@ -87,10 +88,9 @@ class Rocketstore:
 
         if "data_storage_area" in options:
             if isinstance(options.get("data_storage_area"), str):
-                self.data_storage_area = os.path.abspath(
-                    options["data_storage_area"])
+                self.data_storage_area = options["data_storage_area"]
                 try:
-                    os.makedirs(self.data_storage_area,
+                    os.makedirs(os.path.abspath(self.data_storage_area),
                                 mode=0o775, exist_ok=True)
                 except OSError as e:
                     if e.errno != errno.EEXIST:
@@ -105,14 +105,14 @@ class Rocketstore:
         if "lock_files" in options and isinstance(options["lock_files"], bool):
             self.lock_files = options.get("lock_files", True)
 
-    def post(self, collection, key, record, flags=0) -> any:
+    def post(self, collection: any = "", key: str = "", record: any = None, flags=0) -> any:
         '''
         Post a data record (Insert or overwrite)
         If keyCache exists for the given collection, entries are added.
         '''
         collection = str(collection) if collection else ""
 
-        if len(collection) < 1 or not collection:
+        if len(collection) < 1 or not collection or collection == "":
             raise ValueError("No valid collection name given")
 
         if identifier_name_test(collection) == False:
@@ -138,11 +138,12 @@ class Rocketstore:
             key = f"{guid}-{key}" if len(key) > 0 else guid
 
         # Write to file
-        dir_to_write = os.path.join(self.data_storage_area, collection)
+        dir_to_write = os.path.abspath(
+            os.path.join(self.data_storage_area, collection))
         file_name = os.path.join(dir_to_write, key)
 
         if self.data_format & _FORMAT_JSON:
-            os.makedirs(dir_to_write, exist_ok=True)
+            os.makedirs(dir_to_write, mode=0o775, exist_ok=True)
 
             with open(file_name, "w") as file:
                 json.dump(record, file)
@@ -155,8 +156,8 @@ class Rocketstore:
 
         return {"key": key, "count": 1}
 
-    def get(self, collection, key, flags=0, min_time=None, max_time=None) -> any:
-        print("\n-->", collection, key, flags, min_time, max_time)
+    def get(self, collection=None, key=None, flags=0, min_time=None, max_time=None) -> any:
+        print("\n-->c: ", collection, "k: ", key, "f: ", flags)
 
         '''
          * Get one or more records or list all collections (or delete it)
@@ -178,47 +179,49 @@ class Rocketstore:
         records = []
         count = 0
 
-        collection = str("" + collection or "") if collection else ""
+        collection = str(collection or "") if collection else ""
 
         if collection and len(collection) > 0 and identifier_name_test(collection) == False:
             raise ValueError("Collection name contains illegal characters")
 
         # Check key validity
-        key = file_name_wash("" + str(key)).replace(r"[*]{2,}", "*")
+        key = file_name_wash(str(key)).replace(r"[*]{2,}", "*")
 
-        # Scan directory
-        scan_dir = os.path.join(
-            self.data_storage_area, collection or "")
+        scan_dir = os.path.abspath(os.path.join(
+            self.data_storage_area, collection))
 
         wildcard = not "*" in key or not "?" in key or not key
 
         if wildcard and not (flags & _DELETE and not key):
-            list = []
+            _list = []
 
             # Read directory into cache
-            if not collection or not collection in self.key_cache:
+            if collection and not collection in self.key_cache:
+                # Scan directory
                 try:
-                    # list = os.scandir(scan_dir)
-                    list = os.listdir(scan_dir)
-                    print("->", list, list)
+                    print(scan_dir)
+
+                    _list = os.listdir(scan_dir)
+
+                    print("--->", _list)
 
                     # Update cahce
-                    if collection and len(list) > 0:
-                        self.key_cache[collection] = list
+                    if collection and len(_list) > 0:
+                        self.key_cache[collection] = _list
                 except FileNotFoundError as f:
                     raise f
                 except Exception as e:
                     raise e
 
             if collection and collection in self.key_cache:
-                list = self.key_cache[collection]
+                _list = self.key_cache[collection]
 
             # Wildcard search
             if key and key != "*":
-                haystack = self.key_cache[collection] if collection else list
+                haystack = self.key_cache[collection] if collection in self.key_cache else _list
                 keys = [k for k in haystack if glob.fnmatch.fnmatch(k, key)]
             else:
-                keys = list
+                keys = _list
 
             # Order by key value
             if flags & (_ORDER | _ORDER_DESC) and keys and len(keys) > 1 and not (flags & (_DELETE | (flags & _COUNT))):
@@ -284,7 +287,8 @@ class Rocketstore:
                         os.remove(fileNameSeq)
                         count += 1
 
-                del self.key_cache[collection]
+                if collection in self.key_cache:
+                    del self.key_cache[collection]
 
             # Delete records and  ( collection and sequences found with wildcards )
             elif keys:
@@ -340,7 +344,7 @@ class Rocketstore:
         file_name = os.path.join(self.data_storage_area, name)
 
         if self.lock_files:
-            file_lock(self.data_storage_area, name)
+            file_lock(os.path.realpath(self.data_storage_area), name)
 
         try:
             with open(file_name, "r") as file:
@@ -363,6 +367,6 @@ class Rocketstore:
             raise e
 
         if self.lock_files:
-            file_unlock(self.data_storage_area, name)
+            file_unlock(os.path.realpath(self.data_storage_area), name)
 
         return sequence
