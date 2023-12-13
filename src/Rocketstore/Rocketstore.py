@@ -294,7 +294,12 @@ class Rocketstore:
 
                 if os.path.exists(fileName):
                     # Delete collection folder
-                    shutil.rmtree(fileName)
+                    if os.path.isdir(fileName):
+                        shutil.rmtree(fileName)
+
+                    elif os.path.isfile(fileName):
+                        os.remove(fileName)
+                    
                     count += 1
 
                 # Delete single file
@@ -309,7 +314,17 @@ class Rocketstore:
             # Delete records and  ( collection and sequences found with wildcards )
             elif keys:
                 for key in keys:
-                    os.remove(os.path.join(scan_dir, key))
+                    # Delete single file
+                    #os.remove(os.path.join(scan_dir, key))
+
+                    # Remove files with regexp
+                    if "*" in key or "?" in key:
+                        loc = glob.glob(os.path.join(scan_dir, key))
+                        for file in loc:
+                            if os.path.exists(file):
+                                shutil.rmtree(file)
+                                count += len(loc) - count
+                                
                     if collection:
                         uncache = [key]
                     else:
@@ -335,7 +350,7 @@ class Rocketstore:
 
         return result
 
-    def delete(self, collection="", key=""):
+    def delete(self, collection=None, key=None):
         '''
         Delete one or more records or collections
         '''

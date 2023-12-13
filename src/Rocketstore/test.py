@@ -255,18 +255,18 @@ class TestStorage(unittest.TestCase):
         # TODO: test Json and XML
 
         # Delete
-        rs.post("delete_fodders1", "", record)
-        rs.post("delete_fodders1", "", record)
-        rs.post("delete_fodders1", "", record)
+        rs.post(collection="delete_fodders1", record=record)
+        rs.post(collection="delete_fodders1", record=record)
+        rs.post(collection="delete_fodders1", record=record)
         # here have fodder1 = 3
-        rs.post("delete_fodders2", "", record)
+        rs.post(collection="delete_fodders2", record=record)
         # here have fodder2 = 1
-        rs.post("delete_fodders3", "", record)
+        rs.post(collection="delete_fodders3", record=record)
         # here have fodder3 = 1
 
         # Delete record with exact key
-        self.assertEqual(rs.delete("delete_fodders1", "1-Adam Smith"), {
-            "count": 1,
+        self.assertEqual(rs.delete("delete_fodders1", 1), {
+            "count": 1
         })  # remove only 1 item
 
         # Delete collection
@@ -280,7 +280,7 @@ class TestStorage(unittest.TestCase):
         })
 
         # Delete collection with wildcard
-        self.assertEqual(rs.delete("*fodders?"), {
+        self.assertEqual(rs.delete(key="*fodders?"), {
             "count": 2,
         })
 
@@ -293,7 +293,7 @@ class TestStorage(unittest.TestCase):
             "count": 1,
         })
 
-        self.assertEqual(rs.delete("delete_fodders*"), {
+        self.assertEqual(rs.delete(collection="delete_fodders*"), {
             "count": 1,
         })
 
