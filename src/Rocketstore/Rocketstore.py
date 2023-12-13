@@ -292,8 +292,12 @@ class Rocketstore:
                 fileName = os.path.join(self.data_storage_area, collection)
                 count = 0
 
+                loc = glob.glob(os.path.join(fileName, "*"))
+                print("---->", fileName, loc)
+
                 if os.path.exists(fileName):
                     # Delete collection folder
+                    
                     if os.path.isdir(fileName):
                         shutil.rmtree(fileName)
 
