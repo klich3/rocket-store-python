@@ -15,6 +15,7 @@ import os
 import re
 import time
 
+# TODO: rebuild / thing about locking files, no use folder lockfile
 # https://stackoverflow.com/questions/489861/locking-a-file-in-python
 # https://py-filelock.readthedocs.io/en/latest/
 # from filelock import Timeout, FileLock

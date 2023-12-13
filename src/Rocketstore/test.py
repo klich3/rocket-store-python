@@ -14,7 +14,7 @@ import os
 import json
 from pathlib import PurePath
 
-from Rocketstore import Rocketstore, _FORMAT_JSON, _FORMAT_NATIVE, _FORMAT_XML, _ADD_AUTO_INC, _ORDER_DESC, _ADD_GUID
+from Rocketstore import Rocketstore, _FORMAT_JSON, _FORMAT_NATIVE, _FORMAT_XML, _ADD_AUTO_INC, _ORDER_DESC, _ADD_GUID, _ORDER, _ORDERBY_TIME, _LOCK, _DELETE, _KEYS, _COUNT, _FORMAT_PHP
 
 rs = Rocketstore(**{
     "data_storage_area": "./test/ddbb",
@@ -164,13 +164,149 @@ class TestStorage(unittest.TestCase):
         res = rs.get("person", "*")
         self.assertEqual(True if res["count"] == 7 else False, True)
 
+        '''
+        # BUG
         # get_a_list_of_collections_and_sequences
         self.assertEqual(rs.get(), {'count': 0})
 
         # get_a_list_of_collections_and_sequences_with_wildcard
-        print("--->", rs.get("", "*_seq"))
-        self.assertEqual(rs.get("", "*_seq"), {
+        # BUG
+        print("--->", rs.get(key="*_seq"))
+        self.assertEqual(rs.get(key="*_seq"), {
             "count": 2,
+        })
+        '''
+
+        # post_collection_as_number
+        record["id"] += 1
+        with self.assertRaises(ValueError):
+            rs.post(33, f"{record['id']}-{record['name']}", record)
+
+        # get_collections_as_number
+        with self.assertRaises(ValueError):
+            rs.get(33)
+
+        # order_by_flags
+        rs.post("person", "p1", 1)
+        rs.post("person", "p4", 4)
+        rs.post("person", "p2", 2)
+        rs.post("person", "p3", 3)
+
+        order = rs.get("person", "p?", _ORDER)
+        # Get order ascending
+        self.assertEqual(order["result"], [1, 2, 3, 4])
+
+        # get keys
+        self.assertEqual(rs.get("person", "p?", _KEYS), {
+                         'count': 4, 'key': ['p1', 'p4', 'p2', 'p3']})
+
+        # Get keys in descending order
+        result = rs.get("person", "p?", _ORDER_DESC | _KEYS)
+        self.assertEqual(result["key"], ["p4", "p3", "p2", "p1"])
+
+        # Get keys in ascending order
+        result = rs.get("person", "p?", _ORDER | _KEYS)
+        self.assertEqual(result["key"], ["p1", "p2", "p3", "p4"])
+
+        # get record count
+        self.assertEqual(rs.get("person", "p?", _COUNT), {
+                         "count": 4,
+                         })
+
+        # Get manually deleted record where keys != cache
+        os.unlink(os.path.join(rs.data_storage_area, "person", "p2"))
+
+        self.assertEqual(rs.get("person", "p?"), {"count": 3, "key": [
+                         "p1", "p4", "p3"], "result": [1, 4, 3]})
+
+        # test_get_manually_deleted_record_where_keys_equals_cache
+        os.unlink(os.path.join(rs.data_storage_area,
+                  "person", "22756-Adam Smith"))
+
+        res = rs.get("person", "*")
+        self.assertEqual(res["count"] == 9, True)
+
+        key = "No Smith"
+        rs.delete("person")
+
+        rs.post("person", key, "should be ok")
+
+        # wirte w to file
+        w = os.path.join(f"{rs.data_storage_area}/person/{key}")
+        with open(w, "w") as f:
+            f.write("not a JSON{")
+            f.close()
+
+        # get_invalid_JSON_in_file
+        self.assertEqual(rs.get("person", key), {
+            "count": 1,
+            "key": [key],
+            "result": [""],
+        })
+
+        # get_invalid_JSON_in_file
+        self.assertEqual(rs.get("person", key), {
+            "count": 1,
+            "key": [key],
+            "result": [""],
+        })
+
+        # TODO: test time limits
+        # TODO: test Json and XML
+
+        # Delete
+        rs.post("delete_fodders1", "", record)
+        rs.post("delete_fodders1", "", record)
+        rs.post("delete_fodders1", "", record)
+        # here have fodder1 = 3
+        rs.post("delete_fodders2", "", record)
+        # here have fodder2 = 1
+        rs.post("delete_fodders3", "", record)
+        # here have fodder3 = 1
+
+        # Delete record with exact key
+        self.assertEqual(rs.delete("delete_fodders1", "1-Adam Smith"), {
+            "count": 1,
+        })  # remove only 1 item
+
+        # Delete collection
+        self.assertEqual(rs.delete("delete_fodders1"), {
+            "count": 2,
+        })
+
+        # Delete nonexistent collection
+        self.assertEqual(rs.delete("delete_fodders1"), {
+            "count": 0,
+        })
+
+        # Delete collection with wildcard
+        self.assertEqual(rs.delete("*fodders?"), {
+            "count": 2,
+        })
+
+        # Delete numeric collection
+        with self.assertRaises(ValueError):
+            rs.delete("1")
+
+        # Delete sequence
+        self.assertEqual(rs.delete("delete_fodders2_seq"), {
+            "count": 1,
+        })
+
+        self.assertEqual(rs.delete("delete_fodders*"), {
+            "count": 1,
+        })
+
+        # Delete unsafe ../*
+        with self.assertRaises(ValueError):
+            rs.delete("delete_fodders2/../*")
+
+        with self.assertRaises(ValueError):
+            rs.delete("~/*")
+
+        # Delete database
+        self.assertEqual(rs.delete(), {
+            "count": 1,
         })
 
 

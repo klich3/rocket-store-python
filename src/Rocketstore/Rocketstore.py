@@ -157,8 +157,7 @@ class Rocketstore:
         return {"key": key, "count": 1}
 
     def get(self, collection=None, key=None, flags=0, min_time=None, max_time=None) -> any:
-        print("\n-->c: ", collection, "k: ", key, "f: ", flags)
-
+        # print("\n-->c: ", collection, "k: ", key, "f: ", flags)
         '''
          * Get one or more records or list all collections (or delete it)
 
@@ -199,11 +198,30 @@ class Rocketstore:
             if collection and not collection in self.key_cache:
                 # Scan directory
                 try:
-                    print(scan_dir)
-
                     _list = os.listdir(scan_dir)
 
-                    print("--->", _list)
+                    #!------------------------
+                    #!------------------------
+                    #!------------------------
+                    #!------------------------
+                    '''
+                    print("--------", os.system("ls -la " + scan_dir))
+
+                    #!BUG: when collection is empty, _list can be return folders ignoring lockfile
+                    files = os.scandir(scan_dir)
+
+                    for f in files:
+                        if f.is_dir() and f.name != "lockfile":
+                            _list.append(f.name)
+                        if f.is_file():
+                            _list.append(f.name)
+
+                    # _list = [f.name for f in files if f.is_file()]
+                    '''
+                    #!------------------------
+                    #!------------------------
+                    #!------------------------
+                    #!------------------------
 
                     # Update cahce
                     if collection and len(_list) > 0:
@@ -218,6 +236,7 @@ class Rocketstore:
 
             # Wildcard search
             if key and key != "*":
+                # print("--->", _list, "f: ", scan_dir)
                 haystack = self.key_cache[collection] if collection in self.key_cache else _list
                 keys = [k for k in haystack if glob.fnmatch.fnmatch(k, key)]
             else:
@@ -274,18 +293,15 @@ class Rocketstore:
                 count = 0
 
                 if os.path.exists(fileName):
-                    statCheck = os.stat(fileName)
+                    # Delete collection folder
+                    shutil.rmtree(fileName)
+                    count += 1
 
-                    if statCheck.is_dir():
-                        # Delete collection folder
-                        shutil.rmtree(fileName)
-                        count += 1
-
-                    # Delete single file
-                    fileNameSeq = f"{fileName}_seq"
-                    if os.path.exists(fileNameSeq):
-                        os.remove(fileNameSeq)
-                        count += 1
+                # Delete single file
+                fileNameSeq = f"{fileName}_seq"
+                if os.path.exists(fileNameSeq):
+                    os.remove(fileNameSeq)
+                    count += 1
 
                 if collection in self.key_cache:
                     del self.key_cache[collection]
