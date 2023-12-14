@@ -173,7 +173,6 @@ class Rocketstore:
         return {"key": key, "count": 1}
 
     def get(self, collection=None, key=None, flags=0, min_time=None, max_time=None) -> any:
-        print("\n[pre] -->c: ", collection, "k: ", key, "f: ", flags)
         '''
          * Get one or more records or list all collections (or delete it)
 
@@ -205,12 +204,8 @@ class Rocketstore:
         else:
             key = file_name_wash(str(key)).replace(r"[*]{2,}", "*")
 
-        print("\n[post] -->c: ", collection, "k: ", key, "f: ", flags)
-
         scan_dir = os.path.abspath(os.path.join(
             self.data_storage_area, collection))
-
-        print("--->scan_dir: ", scan_dir)
 
         wildcard = not "*" in key or not "?" in key or key == "" or not key
 
@@ -237,7 +232,6 @@ class Rocketstore:
 
             # Wildcard search
             if key and key != "*":
-                # print("--->", _list, "f: ", scan_dir)
                 haystack = self.key_cache[collection] if collection in self.key_cache else _list
                 keys = [k for k in haystack if glob.fnmatch.fnmatch(k, key)]
             else:
@@ -279,9 +273,9 @@ class Rocketstore:
 
         elif flags & _DELETE:
             # DELETE RECORDS
-            print(f"DELETE: c({collection}) k({key})")
+            print(f"276 DELETE: c({collection}) k({key})")
 
-            if not collection and not key or collection == "" and not key:
+            if not collection and not key or collection == "" and not key or collection == "" and key == "":
                 print("# Delete database (all collections) return count 1")
                 try:
                     if os.path.exists(self.data_storage_area):
@@ -292,7 +286,7 @@ class Rocketstore:
                     print(f"Error deleting directory: {e}")
                     raise e
 
-            elif collection and not key or collection == "" and not key:
+            elif collection and not key or collection == "" and not key or collection and key == "":
                 print("# Delete complete collection")
                 fileName = os.path.join(self.data_storage_area, collection)
                 fileNameSeq = os.path.join(
@@ -336,6 +330,35 @@ class Rocketstore:
                         uncache = [key]
                     else:
                         uncache.extend([key])
+
+            elif re.search(r'[\*\?]', key):
+                print("WILD con caracteres especiales")
+            elif not key or key == "":
+                print("DELETE collection")
+                '''
+                fileName = os.path.join(self.data_storage_area, collection)
+                fileNameSeq = os.path.join(
+                    self.data_storage_area, f"{collection}_seq")
+                count = 0
+
+                # Delete single file
+                if os.path.exists(fileName):
+                    if os.path.isfile(fileName):
+                        os.remove(fileName)
+
+                    if os.path.isdir(fileName):
+                        shutil.rmtree(fileName)
+
+                    count += 1
+
+                # Delete single file sequence
+                if os.path.exists(fileNameSeq):
+                    os.remove(fileNameSeq)
+                    count += 1
+
+                if collection in self.key_cache:
+                    del self.key_cache[collection]
+                '''
 
         # Clean up cache and keys
         if uncache:
