@@ -173,6 +173,7 @@ class Rocketstore:
         return {"key": key, "count": 1}
 
     def get(self, collection=None, key=None, flags=0, min_time=None, max_time=None) -> any:
+        print("\n[pre] -->c: ", collection, "k: ", key, "f: ", flags)
         '''
          * Get one or more records or list all collections (or delete it)
 
@@ -204,7 +205,7 @@ class Rocketstore:
         else:
             key = file_name_wash(str(key)).replace(r"[*]{2,}", "*")
 
-        print("\n-->c: ", collection, "k: ", key, "f: ", flags)
+        print("\n[post] -->c: ", collection, "k: ", key, "f: ", flags)
 
         scan_dir = os.path.abspath(os.path.join(
             self.data_storage_area, collection))

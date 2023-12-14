@@ -303,10 +303,12 @@ class TestStorage(unittest.TestCase):
             rs.delete("1")
 
         # Delete sequence
+        print("[306] Delete sequence file")
         self.assertEqual(rs.delete("delete_fodders2_seq"), {
             "count": 1,
         })
 
+        print("[313] Delete wildcat collection delete_fodders*")
         self.assertEqual(rs.delete(collection="delete_fodders*"), {
             "count": 1,
         })
