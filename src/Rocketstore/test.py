@@ -33,8 +33,6 @@ record = {
     "address": "Elm tree road 555",
 }
 
-rs.delete()
-
 
 class TestStorage(unittest.TestCase):
     def test_bad_data_format_option(self):
@@ -44,7 +42,7 @@ class TestStorage(unittest.TestCase):
                 "data_format": "a"
             })
 
-    def test_set_options_on_main_object(self):
+        # set_options_on_main_object
         rs.options(**{
             "data_storage_area": "./",
             "data_format": _FORMAT_NATIVE
@@ -53,14 +51,23 @@ class TestStorage(unittest.TestCase):
         self.assertEqual(rs.data_storage_area, "./")
         self.assertEqual(rs.data_format, _FORMAT_NATIVE)
 
-    def test_set_options_to_unwritable_directory(self):
+        # set_options_to_unwritable_directory
         with self.assertRaises(Exception):
             rs.options(**{
                 "data_storage_area": "/rsdb/sdgdf",
                 "data_format": _FORMAT_NATIVE
             })
 
+        rs.delete()
+
     def test_records(self):
+        rs.options(**{
+            "data_storage_area": "./test/ddbb",
+            "data_format": _FORMAT_JSON
+        })
+
+        rs.delete()
+
         # Post_a_record
         self.assertEqual(rs.post("person", f"{record['id']}-{record['name']}", record), {
             "key":  "22756-Adam Smith",
@@ -265,21 +272,28 @@ class TestStorage(unittest.TestCase):
         # here have fodder3 = 1
 
         # Delete record with exact key
-        self.assertEqual(rs.delete("delete_fodders1", 1), {
+        res = rs.delete(collection="delete_fodders1", key=1)
+        print("[277] Del record with key res: ", res)
+        self.assertEqual(res, {
             "count": 1
         })  # remove only 1 item
 
         # Delete collection
-        self.assertEqual(rs.delete("delete_fodders1"), {
+        res = rs.delete(collection="delete_fodders1")
+        print("[284] Del collection (1 folder + 1 seq_file): ", res)
+        self.assertEqual(res, {
             "count": 2,
         })
 
         # Delete nonexistent collection
+        print("[291] del nonexistent collection: current folders",
+              rs.get("delete_fodders1"))
         self.assertEqual(rs.delete("delete_fodders1"), {
             "count": 0,
         })
 
         # Delete collection with wildcard
+        print("[295] del nonexistent with wildcard")
         self.assertEqual(rs.delete(key="*fodders?"), {
             "count": 2,
         })
