@@ -6,7 +6,7 @@
 
 ***Using the filesystem as a searchable database.***
 
-Rocket-Store is a high performance solution to simple data storage and retrieval. It's taking advantage of modern file system's exceptionally advanced cashing mechanisms.
+Rocketstore is a Python library for data storage. It provides an interface for storing and retrieving data in various formats.
 
 ***ORIGINAL / NODE VERSION:*** https://github.com/Paragi/rocket-store/
 
@@ -34,10 +34,27 @@ Compare Rocket-Store, SQL and file system terms:
 | __record__           |  row          |  file                  |
 
 
+## Features
+
+- Support for file locking.
+- Support for creating data storage directories.
+- Support for adding auto incrementing sequences and GUIDs to keys.
+
+
+## Usage
+
+To use Rocketstore, you must first import the library:
+
+```python
+from Rocketstore import Rocketstore, _FORMAT_JSON
+```
+
 ### Post
 
 ```python
-sample
+rs.post(collection="delete_fodders1", key="1", record={"some":"json input"}, flags=_FORMAT_JSON)
+# or
+rs.post("delete_fodders1", "1", {"some":"json input"}, _FORMAT_JSON)
 ```
 
 Stores a record in a collection identified by a unique key
@@ -48,6 +65,8 @@ __Key__ uniquely identifying the record
 
 No path separators or wildcards etc. are allowed in collection names and keys.
 Illigal charakters are silently striped off.
+
+__Content__ Data input to store
 
 __Options__
   * _ADD_AUTO_INC:  Add an auto incremented sequence to the beginning of the key
@@ -69,7 +88,11 @@ If the function fails for any reason, an error is thrown.
 Find and retrieve records, in a collection.
 
 ```python
-sample
+rs.get(collection="delete_fodders1")
+# or
+rs.get("delete_fodders1")
+# Get wildcar
+rs.get("delete_*")
 ```
 
 __Collection__ to search. If no collection name is given, get will return a list of data base assets: collections and sequences etc.
@@ -91,10 +114,22 @@ NB: wildcards are very expensive on large datasets with most filesystems.
 (on a regular PC with +10^7 records in the collection, it might take up to a second to retreive one record, whereas one might retrieve up to 100.000 records with an exact key match)
 
 ### Delete
+
 Delete one or more records, whos key match.
 
 ```python
-smmple
+# Delete database
+rs.delete()
+
+# Delete collection with content
+rs.delete("delete_fodders1")
+
+# Delete wild collection 
+rs.delete("delete_*")
+
+# Delete exact key
+rs.delete("delete_fodders1", "1")
+
 ```
 
 __Collection__ to search. If no collection is given, **THE WHOLE DATA BASE IS DELETED!**
@@ -106,14 +141,23 @@ __Return__ an array of
 
 ### Options
 
+Can be called at any time to change the configuration values of the initialized instance
 
-|index name|values|
-|---|---|
-|data_storage_area | The directory where the database resides. The default is to use a subdirectory to the temporary directory provided by the operating system. If that doesn't work, the DOCUMENT_ROOT directory is used. |
-|data_format       | Specify which format the records are stored in. Values are: _FORMAT_NATIVE - default. and RS_FORMAT_JSON - Use JSON data format.|
+__Options__:
+  * data_storage_area: The directory where the database resides. The default is to use a subdirectory to the temporary directory provided by the operating system. If that doesn't work, the DOCUMENT_ROOT directory is used.
+  * data_format: Specify which format the records are stored in. Values are: _FORMAT_NATIVE - default. and RS_FORMAT_JSON - Use JSON data format.
 
+```python
+rs.options(data_format=_FORMAT_JSON)
+# or
+rs.options(**{
+  "data_format": _FORMAT_JSON,
+  ...
+})
+```
 
 #### Inserting with Globally Unique IDentifier key
+
 Another option is to add a GUID to the key.
 The GUID is a combination of a timestamp and a random sequence, formatet in accordance to  RFC 4122 (Valid but slightly less random)
 
@@ -122,15 +166,10 @@ If two ID's are generated at shorter intervals, the likelyhod of collission is u
 
 ---
 
+### Contribute
+Contributions are welcome. Please open an issue to discuss what you would like to change.
 
-# TODO
-[x] CITAITON
-[x] LICENSE
-[x] Test
-[x] lock files
-[ ] https://github.com/pkaminski/sample/blob/master/setup.cfg
-[ ] Publish to pypi
-[ ] Update readme
+---
 
 ### Docs:
 * https://packaging.python.org/en/latest/tutorials/packaging-projects/

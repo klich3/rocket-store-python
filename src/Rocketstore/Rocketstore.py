@@ -35,19 +35,19 @@ import time
 from utils.files import file_lock, file_unlock, identifier_name_test, file_name_wash
 
 # Constants
-_ORDER = 0x01
-_ORDER_DESC = 0x02
-_ORDERBY_TIME = 0x04
-_LOCK = 0x08
-_DELETE = 0x10
-_KEYS = 0x20
-_COUNT = 0x40
-_ADD_AUTO_INC = 0x01
-_ADD_GUID = 0x02
-_FORMAT_JSON = 0x01
-_FORMAT_NATIVE = 0x02
-_FORMAT_XML = 0x04
-_FORMAT_PHP = 0x08
+_ORDER = 0x01  # Sort ASC
+_ORDER_DESC = 0x02  # Sort DESC
+_ORDERBY_TIME = 0x04  # Sort by time not implemented
+_LOCK = 0x08  # Lock file
+_DELETE = 0x10  # Delete file / collection / database
+_KEYS = 0x20  # Return keys only
+_COUNT = 0x40  # Return count only
+_ADD_AUTO_INC = 0x01  # Add auto incrementing sequence to key
+_ADD_GUID = 0x02  # Add Globally Unique IDentifier to key (RFC 4122)
+_FORMAT_JSON = 0x01  # Store data in JSON format
+_FORMAT_NATIVE = 0x02  # Store data in native format (JSON)
+_FORMAT_XML = 0x04  # Store data in XML format
+_FORMAT_PHP = 0x08  # Store data in PHP format
 
 # TODO: new binary json format
 # _FORMAT_BSON = 0x09 #https://en.wikipedia.org/wiki/BSON
