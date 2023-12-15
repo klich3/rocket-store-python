@@ -1,21 +1,26 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires      = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name = "rocketstore"
-version = "0.0.1"
+name = "Rocket-Store"
+version = "0.0.2"
 authors = [
   { name="Anton Sychev", email="anton@sychev.xyz" },
 ]
 description = "Using the filesystem as a searchable database."
 readme = "README.md"
+license = { file = "LICENSE" }
+keywords = ["database", "store", "file", "document", "database-mangement", "record", "file-store", "store-file", "filebase"]
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+
+[project.optional-dependencies]
+ build = ["build", "twine"]
 
 [project.urls]
 Homepage = "https://github.com/klich3/rocket-store-python"
