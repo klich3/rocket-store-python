@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: Rocket-Store Python
+title: Rocket-Store
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -17,4 +17,4 @@ keywords:
   - file
   - rocket
 license: MIT
-version: 0.0.1
+version: 0.0.2

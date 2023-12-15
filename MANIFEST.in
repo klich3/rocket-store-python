@@ -1,5 +1,7 @@
 include LICENSE
 include CITATION.cff
 include README.md
-recursive-include utils *
-recursive-include *.py
+include *.toml
+recursive-include src *.py
+recursive-include src/Rocketstore *.py
+recursive-include src/Rocketstore/utils *.py
