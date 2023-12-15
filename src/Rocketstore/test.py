@@ -17,7 +17,7 @@ from pathlib import PurePath
 from Rocketstore import Rocketstore, _FORMAT_JSON, _FORMAT_NATIVE, _FORMAT_XML, _ADD_AUTO_INC, _ORDER_DESC, _ADD_GUID, _ORDER, _ORDERBY_TIME, _LOCK, _DELETE, _KEYS, _COUNT, _FORMAT_PHP
 
 rs = Rocketstore(**{
-    "data_storage_area": "./test/ddbb",
+    "data_storage_area": "./tests/ddbb",
     "data_format": _FORMAT_JSON
 })
 
@@ -62,7 +62,7 @@ class TestStorage(unittest.TestCase):
 
     def test_records(self):
         rs.options(**{
-            "data_storage_area": "./test/ddbb",
+            "data_storage_area": "./tests/ddbb",
             "data_format": _FORMAT_JSON
         })
 
