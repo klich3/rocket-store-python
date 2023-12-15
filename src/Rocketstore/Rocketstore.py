@@ -333,32 +333,10 @@ class Rocketstore:
 
             elif re.search(r'[\*\?]', key):
                 print("WILD con caracteres especiales")
-            elif not key or key == "":
-                print("DELETE collection")
-                '''
-                fileName = os.path.join(self.data_storage_area, collection)
-                fileNameSeq = os.path.join(
-                    self.data_storage_area, f"{collection}_seq")
-                count = 0
-
-                # Delete single file
-                if os.path.exists(fileName):
-                    if os.path.isfile(fileName):
-                        os.remove(fileName)
-
-                    if os.path.isdir(fileName):
-                        shutil.rmtree(fileName)
-
+                fileNamesWild = glob.glob(os.path.join(scan_dir, key))
+                for file in fileNamesWild:
+                    os.remove(file)
                     count += 1
-
-                # Delete single file sequence
-                if os.path.exists(fileNameSeq):
-                    os.remove(fileNameSeq)
-                    count += 1
-
-                if collection in self.key_cache:
-                    del self.key_cache[collection]
-                '''
 
         # Clean up cache and keys
         if uncache:
