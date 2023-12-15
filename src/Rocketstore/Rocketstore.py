@@ -32,7 +32,7 @@ import errno
 import shutil
 import time
 
-from utils.files import file_lock, file_unlock, identifier_name_test, file_name_wash
+from .utils.files import file_lock, file_unlock, identifier_name_test, file_name_wash
 
 # Constants
 _ORDER = 0x01  # Sort ASC
