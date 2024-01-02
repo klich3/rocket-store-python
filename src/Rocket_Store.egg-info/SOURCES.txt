@@ -3,6 +3,13 @@ LICENSE
 MANIFEST.in
 README.md
 pyproject.toml
+src/RocketStore/RocketStore.py
+src/RocketStore/Rocketstore.py
+src/RocketStore/__init__.py
+src/RocketStore/__version__.py
+src/RocketStore/example.py
+src/RocketStore/utils/__init__.py
+src/RocketStore/utils/files.py
 src/Rocket_Store.egg-info/PKG-INFO
 src/Rocket_Store.egg-info/SOURCES.txt
 src/Rocket_Store.egg-info/dependency_links.txt

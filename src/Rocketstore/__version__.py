@@ -11,8 +11,8 @@ Desc: Versions
 __title__ = "RocketStore"
 __description__ = "Rocket Store (Python) - Fast and Simple Database"
 __url__ = "https://github.com/klich3/rocket-store-python"
-__version__ = "0.0.3"
-__build__ = 0x000018
+__version__ = "0.0.4"
+__build__ = 0x000019
 __author__ = "Anton Sychev"
 __author_email__ = "anton@sychev.xyz"
 __copyright__ = "Copyright Simon Riget"
