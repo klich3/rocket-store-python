@@ -17,6 +17,7 @@ src/Rocket_Store.egg-info/requires.txt
 src/Rocket_Store.egg-info/top_level.txt
 src/Rocketstore/Rocketstore.py
 src/Rocketstore/__init__.py
+src/Rocketstore/__version__.py
 src/Rocketstore/example.py
 src/Rocketstore/utils/__init__.py
 src/Rocketstore/utils/files.py

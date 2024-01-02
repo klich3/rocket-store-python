@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: Rocket-Store
-Version: 0.0.4
+Version: 0.0.5
 Summary: Using the filesystem as a searchable database.
 Author-email: Anton Sychev <anton@sychev.xyz>
 License:   Rocket Store
@@ -90,7 +90,10 @@ Compare Rocket-Store, SQL and file system terms:
 To use Rocketstore, you must first import the library:
 
 ```python
-import Rocketstore, _FORMAT_JSON
+from Rocketstore import Rocketstore, _FORMAT_JSON
+
+rs = Rocketstore()
+
 ```
 
 ### Post
