@@ -182,9 +182,13 @@ Contributions are welcome. Please open an issue to discuss what you would like t
 
 ### Publish to Pypi
 
+***Local:***
 ```shell
 python -m pip install build twine
 python3 -m build   
 twine check dist/*
 twine upload dist/*
 ```
+
+***Live:***
+No need do nothing GitHub have Workflow action its publish auto
