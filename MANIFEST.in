@@ -5,3 +5,5 @@ include *.toml
 recursive-include src *.py
 recursive-include src/Rocketstore *.py
 recursive-include src/Rocketstore/utils *.py
+prune */__pycache__
+recursive-exclude Samples/*

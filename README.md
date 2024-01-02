@@ -48,18 +48,31 @@ Compare Rocket-Store, SQL and file system terms:
 To use Rocketstore, you must first import the library:
 
 ```python
-from Rocketstore import Rocketstore, _FORMAT_JSON
+from Rocketstore import Rocketstore
 
 rs = Rocketstore()
+```
+
+usage of constants:
+```python
+
+#method 1:
+rs = Rocketstore()
+rs.post(..., rs._FORMAT_JSON)
+
+#or 
+
+rs.post(..., Rocketstore._FORMAT_JSON)
 
 ```
+
 
 ### Post
 
 ```python
-rs.post(collection="delete_fodders1", key="1", record={"some":"json input"}, flags=_FORMAT_JSON)
+rs.post(collection="delete_fodders1", key="1", record={"some":"json input"}, flags=Rocketstore._FORMAT_JSON)
 # or
-rs.post("delete_fodders1", "1", {"some":"json input"}, _FORMAT_JSON)
+rs.post("delete_fodders1", "1", {"some":"json input"}, Rocketstore._FORMAT_JSON)
 ```
 
 Stores a record in a collection identified by a unique key
@@ -153,10 +166,10 @@ __Options__:
   * data_format: Specify which format the records are stored in. Values are: _FORMAT_NATIVE - default. and RS_FORMAT_JSON - Use JSON data format.
 
 ```python
-rs.options(data_format=_FORMAT_JSON)
+rs.options(data_format=Rocketstore._FORMAT_JSON)
 # or
 rs.options(**{
-  "data_format": _FORMAT_JSON,
+  "data_format": Rocketstore._FORMAT_JSON,
   ...
 })
 ```

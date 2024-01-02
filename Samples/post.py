@@ -1,8 +1,10 @@
-from Rocketstore import Rocketstore, _ADD_AUTO_INC
+from Rocketstore import Rocketstore
 
 rs = Rocketstore(**{"data_storage_area": "./test"})
 
 print(rs)
+print("test Constants:", rs._ADD_AUTO_INC)
+print("test Constants: ", Rocketstore._ADD_AUTO_INC)
 
 dataInput = {
     "content": "hello asfalsdfsalfaslflasl",
@@ -17,6 +19,11 @@ print(out)
 
 
 out = rs.post("glOtc6EzYQTZEt0J18cU1f4Ycdz1H8WWTDVkBQTp1Gv2BWgb",
-              "memories", dataInput, _ADD_AUTO_INC)
+              "memories", dataInput, rs._ADD_AUTO_INC)
+
+print(out)
+
+out = rs.post("glOtc6EzYQTZEt0J18cU1f4Ycdz1H8WWTDVkBQTp1Gv2BWgb",
+              "memories", dataInput, Rocketstore._ADD_AUTO_INC)
 
 print(out)

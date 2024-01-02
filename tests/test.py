@@ -14,11 +14,11 @@ import os
 import json
 from pathlib import PurePath
 
-from Rocketstore import Rocketstore, _FORMAT_JSON, _FORMAT_NATIVE, _FORMAT_XML, _ADD_AUTO_INC, _ORDER_DESC, _ADD_GUID, _ORDER, _ORDERBY_TIME, _LOCK, _DELETE, _KEYS, _COUNT, _FORMAT_PHP
+from Rocketstore import Rocketstore
 
 rs = Rocketstore(**{
     "data_storage_area": "./tests/ddbb",
-    "data_format": _FORMAT_JSON
+    "data_format": Rocketstore._FORMAT_JSON
 })
 
 
@@ -45,17 +45,17 @@ class TestStorage(unittest.TestCase):
         # set_options_on_main_object
         rs.options(**{
             "data_storage_area": "./",
-            "data_format": _FORMAT_NATIVE
+            "data_format": Rocketstore._FORMAT_NATIVE
         })
 
         self.assertEqual(rs.data_storage_area, "./")
-        self.assertEqual(rs.data_format, _FORMAT_NATIVE)
+        self.assertEqual(rs.data_format, Rocketstore._FORMAT_NATIVE)
 
         # set_options_to_unwritable_directory
         with self.assertRaises(Exception):
             rs.options(**{
                 "data_storage_area": "/rsdb/sdgdf",
-                "data_format": _FORMAT_NATIVE
+                "data_format": Rocketstore._FORMAT_NATIVE
             })
 
         rs.delete()
@@ -63,7 +63,7 @@ class TestStorage(unittest.TestCase):
     def test_records(self):
         rs.options(**{
             "data_storage_area": "./tests/ddbb",
-            "data_format": _FORMAT_JSON
+            "data_format": Rocketstore._FORMAT_JSON
         })
 
         rs.delete()
@@ -92,11 +92,11 @@ class TestStorage(unittest.TestCase):
         # Post_a_record_with_empty_key
         self.assertEqual(rs.post("person", "", record),
                          {'count': 1, 'key': '1'})
-        self.assertEqual(rs.post("person", "key", record, _ADD_AUTO_INC), {
+        self.assertEqual(rs.post("person", "key", record, Rocketstore._ADD_AUTO_INC), {
                          'count': 1, 'key': '2-key'})
 
         # Post_a_record_with_auto_incremented_key_only
-        self.assertEqual(rs.post("person", "", record, _ADD_AUTO_INC), {
+        self.assertEqual(rs.post("person", "", record, Rocketstore._ADD_AUTO_INC), {
             "key": "3",
             "count": 1,
         })
@@ -110,13 +110,13 @@ class TestStorage(unittest.TestCase):
             rs.post("\x00./.\x00", "bad", record)
 
         # Post_a_record_with_GUID_added_to_key
-        self.assertEqual(rs.post("person", "key-value", record, _ADD_AUTO_INC), {
+        self.assertEqual(rs.post("person", "key-value", record, Rocketstore._ADD_AUTO_INC), {
             "key": "4-key-value",
             "count": 1,
         })
 
         # Post_a_record_with_GUID_key_only
-        res = rs.post("person", "", record, _ADD_GUID)
+        res = rs.post("person", "", record, Rocketstore._ADD_GUID)
         res = json.dumps(res)
         pattern = r'"key": "([^"]+)", "count": 1'
         self.assertRegex(res, pattern)
@@ -199,24 +199,25 @@ class TestStorage(unittest.TestCase):
         rs.post("person", "p2", 2)
         rs.post("person", "p3", 3)
 
-        order = rs.get("person", "p?", _ORDER)
+        order = rs.get("person", "p?", Rocketstore._ORDER)
         # Get order ascending
         self.assertEqual(order["result"], [1, 2, 3, 4])
 
         # get keys
-        self.assertEqual(rs.get("person", "p?", _KEYS), {
+        self.assertEqual(rs.get("person", "p?", Rocketstore._KEYS), {
                          'count': 4, 'key': ['p1', 'p4', 'p2', 'p3']})
 
         # Get keys in descending order
-        result = rs.get("person", "p?", _ORDER_DESC | _KEYS)
+        result = rs.get(
+            "person", "p?", Rocketstore._ORDER_DESC | Rocketstore._KEYS)
         self.assertEqual(result["key"], ["p4", "p3", "p2", "p1"])
 
         # Get keys in ascending order
-        result = rs.get("person", "p?", _ORDER | _KEYS)
+        result = rs.get("person", "p?", Rocketstore._ORDER | Rocketstore._KEYS)
         self.assertEqual(result["key"], ["p1", "p2", "p3", "p4"])
 
         # get record count
-        self.assertEqual(rs.get("person", "p?", _COUNT), {
+        self.assertEqual(rs.get("person", "p?", Rocketstore._COUNT), {
                          "count": 4,
                          })
 

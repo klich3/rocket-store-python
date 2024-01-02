@@ -9,19 +9,20 @@ Desc: sample create instance of RocketStore
 Docs: documentation
 """
 
-from .Rocketstore import Rocketstore, _FORMAT_JSON, _FORMAT_NATIVE, _FORMAT_XML, _ADD_AUTO_INC, _ORDER_DESC
+from Rocketstore import Rocketstore
 
-rs = Rocketstore(**{"data_storage_area": "./webapp",
-                    "data_format": _FORMAT_JSON})
+rs = Rocketstore(**{"data_storage_area": "./test",
+                    "data_format": Rocketstore._FORMAT_JSON})
 
 rs.post("cars", "Mercedes_Benz_GT_R", {"owner": "Lisa Simpson"})
 
 print("GET: ", rs.get("cars", ""), "\n-----\n")
 # GET:  {'count': 1, 'key': ['Mercedes_Benz_GT_R'], 'result': [{'owner': 'Lisa Simpson'}]}
 
-rs.post("cars", "BMW_740li", {"owner": "Greg Onslow"}, _ADD_AUTO_INC)
-rs.post("cars", "BMW_740li", {"owner": "Sam Wise"}, _ADD_AUTO_INC)
-rs.post("cars", "BMW_740li", {"owner": "Bill Bo"}, _ADD_AUTO_INC)
+rs.post("cars", "BMW_740li", {
+        "owner": "Greg Onslow"}, Rocketstore._ADD_AUTO_INC)
+rs.post("cars", "BMW_740li", {"owner": "Sam Wise"}, Rocketstore._ADD_AUTO_INC)
+rs.post("cars", "BMW_740li", {"owner": "Bill Bo"}, Rocketstore._ADD_AUTO_INC)
 # tienen que haber un BMW_740li
 
 print("GET ALL CARS: ", rs.get("cars", "*"), "\n-----\n")
@@ -60,7 +61,7 @@ Get BMW's:
 
 
 print("Get list ordered by alphabetically descending keys: ",
-      rs.get("cars", "", _ORDER_DESC), "\n-----\n")
+      rs.get("cars", "", Rocketstore._ORDER_DESC), "\n-----\n")
 '''
 Get list ordered by alphabetically descending keys:
  {
