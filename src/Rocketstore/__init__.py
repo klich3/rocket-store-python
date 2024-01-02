@@ -22,4 +22,4 @@ from .__version__ import (
     __version__,
 )
 
-from .Rocketstore import Rocketstore
+from .Rocketstore import Rocketstore, _ORDER, _ORDER_DESC, _ORDERBY_TIME, _LOCK, _DELETE, _KEYS, _COUNT, _ADD_AUTO_INC, _ADD_GUID, _FORMAT_JSON, _FORMAT_NATIVE, _FORMAT_XML, _FORMAT_PHP

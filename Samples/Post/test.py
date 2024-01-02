@@ -1,6 +1,8 @@
-from Rocketstore import Rocketstore
+from Rocketstore import Rocketstore, _ADD_AUTO_INC
 
 rs = Rocketstore(**{"data_storage_area": "./test"})
+
+print(rs)
 
 dataInput = {
     "content": "hello asfalsdfsalfaslflasl",
@@ -8,7 +10,13 @@ dataInput = {
 }
 
 
-out = rs.post("glOtc6EzYQTZEt0J18cU1f4Ycdz1H8WWTDVkBQTp1Gv2BWgb", "memories", dataInput)
+out = rs.post("glOtc6EzYQTZEt0J18cU1f4Ycdz1H8WWTDVkBQTp1Gv2BWgb",
+              "memories", dataInput)
 
-print(rs)
+print(out)
+
+
+out = rs.post("glOtc6EzYQTZEt0J18cU1f4Ycdz1H8WWTDVkBQTp1Gv2BWgb",
+              "memories", dataInput, _ADD_AUTO_INC)
+
 print(out)
