@@ -57,7 +57,7 @@ _FORMAT_PHP = 0x08  # Store data in PHP format
 # TODO: checker last modified file time if exist lockfile and is to much longuer (to unlock it)
 
 
-class RocketStore:
+class Rocketstore:
 
     data_storage_area: str = os.path.join(os.path.sep, "tmp", "rsdb")
 

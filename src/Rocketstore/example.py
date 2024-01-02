@@ -9,14 +9,9 @@ Desc: sample create instance of RocketStore
 Docs: documentation
 """
 
-import RocketStore
-import _FORMAT_JSON
-import _FORMAT_NATIVE
-import _FORMAT_XML
-import _ADD_AUTO_INC
-import _ORDER_DESC
+from .Rocketstore import Rocketstore, _FORMAT_JSON, _FORMAT_NATIVE, _FORMAT_XML, _ADD_AUTO_INC, _ORDER_DESC
 
-rs = RocketStore(**{"data_storage_area": "./webapp",
+rs = Rocketstore(**{"data_storage_area": "./webapp",
                     "data_format": _FORMAT_JSON})
 
 rs.post("cars", "Mercedes_Benz_GT_R", {"owner": "Lisa Simpson"})
