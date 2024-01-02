@@ -48,7 +48,7 @@ Compare Rocket-Store, SQL and file system terms:
 To use Rocketstore, you must first import the library:
 
 ```python
-from Rocketstore import Rocketstore, _FORMAT_JSON
+import Rocketstore, _FORMAT_JSON
 ```
 
 ### Post
