@@ -34,21 +34,6 @@ import time
 
 from .utils.files import file_lock, file_unlock, identifier_name_test, file_name_wash
 
-# Constants
-_ORDER = 0x01  # Sort ASC
-_ORDER_DESC = 0x02  # Sort DESC
-_ORDERBY_TIME = 0x04  # Sort by time not implemented
-_LOCK = 0x08  # Lock file
-_DELETE = 0x10  # Delete file / collection / database
-_KEYS = 0x20  # Return keys only
-_COUNT = 0x40  # Return count only
-_ADD_AUTO_INC = 0x01  # Add auto incrementing sequence to key
-_ADD_GUID = 0x02  # Add Globally Unique IDentifier to key (RFC 4122)
-_FORMAT_JSON = 0x01  # Store data in JSON format
-_FORMAT_NATIVE = 0x02  # Store data in native format (JSON)
-_FORMAT_XML = 0x04  # Store data in XML format
-_FORMAT_PHP = 0x08  # Store data in PHP format
-
 # TODO: new binary json format
 # _FORMAT_BSON = 0x09 #https://en.wikipedia.org/wiki/BSON
 # _FORMAT_PROTOBUF = 0x10 #https://protobuf.dev/
@@ -59,12 +44,27 @@ _FORMAT_PHP = 0x08  # Store data in PHP format
 
 class Rocketstore:
 
+    # Constants
+    _ORDER = 0x01  # Sort ASC
+    _ORDER_DESC = 0x02  # Sort DESC
+    _ORDERBY_TIME = 0x04  # Sort by time not implemented
+    _LOCK = 0x08  # Lock file
+    _DELETE = 0x10  # Delete file / collection / database
+    _KEYS = 0x20  # Return keys only
+    _COUNT = 0x40  # Return count only
+    _ADD_AUTO_INC = 0x01  # Add auto incrementing sequence to key
+    _ADD_GUID = 0x02  # Add Globally Unique IDentifier to key (RFC 4122)
+    _FORMAT_JSON = 0x01  # Store data in JSON format
+    _FORMAT_NATIVE = 0x02  # Store data in native format (JSON)
+    _FORMAT_XML = 0x04  # Store data in XML format
+    _FORMAT_PHP = 0x08  # Store data in PHP format
+
     data_storage_area: str = os.path.join(os.path.sep, "tmp", "rsdb")
 
     def __init__(self, **set_option) -> None:
         # https://docs.python.org/es/dev/library/tempfile.html
         # TODO: use tempdir
-        self.data_format = _FORMAT_JSON
+        self.data_format = self._FORMAT_JSON
         self.lock_retry_interval = 13
         self.lock_files = True
         self.key_cache = {}
@@ -76,16 +76,17 @@ class Rocketstore:
         '''
         inital setup of Rocketstore
         @Sample:
-            from Rocketstore import Rocketstore, _FORMAT_JSON, _FORMAT_NATIVE
+            from Rocketstore import Rocketstore
             rs.options(**{
                 "data_storage_area": "./",
-                "data_format": _FORMAT_NATIVE
+                "data_format": Rocketstore._FORMAT_NATIVE
             })
         '''
 
         if "data_format" in options:
-            if options["data_format"] in [_FORMAT_JSON, _FORMAT_XML, _FORMAT_NATIVE]:
-                self.data_format = options.get("data_format", _FORMAT_JSON)
+            if options["data_format"] in [self._FORMAT_JSON, self._FORMAT_XML, self._FORMAT_NATIVE]:
+                self.data_format = options.get(
+                    "data_format", self._FORMAT_JSON)
             else:
                 raise ValueError(
                     f"Unknown data format: '{options['data_format']}'")
@@ -143,12 +144,12 @@ class Rocketstore:
             key = ""
 
         # Insert a sequence
-        if len(key) < 1 or flags & _ADD_AUTO_INC:
+        if len(key) < 1 or flags & self._ADD_AUTO_INC:
             _sequence = self.sequence(collection)
             key = f"{_sequence}-{key}" if key else str(_sequence)
 
         # Insert a Globally Unique IDentifier
-        if flags & _ADD_GUID:
+        if flags & self._ADD_GUID:
             uid = hex(int(os.urandom(8).hex(), 16))[2:]
             guid = f"{uid[:8]}-{uid[8:12]}-4000-8{uid[12:15]}-{uid[15:]}"
             key = f"{guid}-{key}" if len(key) > 0 else guid
@@ -158,7 +159,7 @@ class Rocketstore:
             os.path.join(self.data_storage_area, collection))
         file_name = os.path.join(dir_to_write, key)
 
-        if self.data_format & _FORMAT_JSON:
+        if self.data_format & self._FORMAT_JSON:
             os.makedirs(dir_to_write, mode=0o775, exist_ok=True)
 
             with open(file_name, "w") as file:
@@ -209,7 +210,7 @@ class Rocketstore:
 
         wildcard = not "*" in key or not "?" in key or key == "" or not key
 
-        if wildcard and not (flags & _DELETE and (not key or key == "")):
+        if wildcard and not (flags & self._DELETE and (not key or key == "")):
             _list = []
 
             # Read directory into cache
@@ -238,9 +239,9 @@ class Rocketstore:
                 keys = _list
 
             # Order by key value
-            if flags & (_ORDER | _ORDER_DESC) and keys and len(keys) > 1 and not (flags & (_DELETE | (flags & _COUNT))):
+            if flags & (self._ORDER | self._ORDER_DESC) and keys and len(keys) > 1 and not (flags & (self._DELETE | (flags & self._COUNT))):
                 keys.sort()
-                if flags & _ORDER_DESC:
+                if flags & self._ORDER_DESC:
                     keys.reverse()
         else:
             if collection and isinstance(self.key_cache.get(collection), list) and key not in self.key_cache[collection]:
@@ -250,14 +251,14 @@ class Rocketstore:
 
         count = len(keys)
 
-        if len(keys) > 0 and collection and not (flags & (_KEYS | _COUNT | _DELETE)):
+        if len(keys) > 0 and collection and not (flags & (self._KEYS | self._COUNT | self._DELETE)):
             records = [None] * len(keys)
 
             for i in range(len(keys)):
                 file_name = os.path.join(scan_dir, keys[i])
 
                 # Read JSON record file
-                if self.data_format & _FORMAT_JSON:
+                if self.data_format & self._FORMAT_JSON:
                     try:
                         with open(file_name, 'r') as file:
                             records[i] = json.load(file)
@@ -271,7 +272,7 @@ class Rocketstore:
                     raise ValueError(
                         "Sorry, that data format is not supported")
 
-        elif flags & _DELETE:
+        elif flags & self._DELETE:
             # DELETE RECORDS
             print(f"276 DELETE: c({collection}) k({key})")
 
@@ -351,7 +352,7 @@ class Rocketstore:
                 records = [e for e in records if e != "*deleted*"]
 
         result = {'count': count}
-        if result['count'] and keys and not (flags & (_COUNT | _DELETE)):
+        if result['count'] and keys and not (flags & (self._COUNT | self._DELETE)):
             result['key'] = keys
         if records:
             result['result'] = records
@@ -362,7 +363,7 @@ class Rocketstore:
         '''
         Delete one or more records or collections
         '''
-        return self.get(collection=collection, key=key, flags=_DELETE)
+        return self.get(collection=collection, key=key, flags=self._DELETE)
 
     def sequence(self, seq_name: str) -> int:
         '''
