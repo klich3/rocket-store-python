@@ -5,13 +5,18 @@
 Author: <Anton Sychev> (anton at sychev dot xyz) 
 sample.py (c) 2023 
 Created:  2023-12-01 01:02:01 
-Desc: sample create instance of Rocketstore
+Desc: sample create instance of RocketStore
 Docs: documentation
 """
 
-from Rocketstore import Rocketstore, _FORMAT_JSON, _FORMAT_NATIVE, _FORMAT_XML, _ADD_AUTO_INC, _ORDER_DESC
+import RocketStore
+import _FORMAT_JSON
+import _FORMAT_NATIVE
+import _FORMAT_XML
+import _ADD_AUTO_INC
+import _ORDER_DESC
 
-rs = Rocketstore(**{"data_storage_area": "./webapp",
+rs = RocketStore(**{"data_storage_area": "./webapp",
                     "data_format": _FORMAT_JSON})
 
 rs.post("cars", "Mercedes_Benz_GT_R", {"owner": "Lisa Simpson"})
