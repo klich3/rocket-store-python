@@ -5,7 +5,7 @@
 Author: <Anton Sychev> (anton at sychev dot xyz) 
 main.py (c) 2023 
 Created:  2023-10-31 21:03:32 
-Desc: Rocket Store (Python) - main module code
+Desc: Rocket Store (Python) - main module code ported from Node.js version (https://github.com/paragi/rocket-store-node)
 License: 
     * MIT: (c) Paragi 2017, Simon Riget.
 Terminology:
@@ -57,7 +57,7 @@ _FORMAT_PHP = 0x08  # Store data in PHP format
 # TODO: checker last modified file time if exist lockfile and is to much longuer (to unlock it)
 
 
-class Rocketstore:
+class RocketStore:
 
     data_storage_area: str = os.path.join(os.path.sep, "tmp", "rsdb")
 
