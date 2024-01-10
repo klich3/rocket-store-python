@@ -308,8 +308,8 @@ class Rocketstore:
                 file_name = os.path.join(scan_dir, keys[i])
 
                 # Skip .DS_Store files
-                if not file_name.lower().endswith(".ds_store"):
-                    continue
+                # if not file_name.lower().endswith(".ds_store"):
+                #    continue
 
                 # Read JSON record file
                 if self.data_format & self._FORMAT_JSON:
