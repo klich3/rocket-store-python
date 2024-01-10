@@ -24,6 +24,7 @@ Terminology:
   +------------------+---------------+------------------------+
 """
 
+from .utils.files import file_lock, file_unlock, identifier_name_test, file_name_wash
 import os
 import json
 import re
@@ -32,7 +33,12 @@ import errno
 import shutil
 import time
 
-from .utils.files import file_lock, file_unlock, identifier_name_test, file_name_wash
+import logging
+
+logging.basicConfig(
+    format="%(levelname)s: %(message)s",
+)
+
 
 # TODO: new binary json format
 # _FORMAT_BSON = 0x09 #https://en.wikipedia.org/wiki/BSON
@@ -43,7 +49,6 @@ from .utils.files import file_lock, file_unlock, identifier_name_test, file_name
 
 
 class Rocketstore:
-
     # Constants
     _ORDER = 0x01  # Sort ASC
     _ORDER_DESC = 0x02  # Sort DESC
@@ -73,7 +78,7 @@ class Rocketstore:
             self.options(**set_option)
 
     def options(self, **options) -> None:
-        '''
+        """
         inital setup of Rocketstore
         @Sample:
             from Rocketstore import Rocketstore
@@ -81,10 +86,20 @@ class Rocketstore:
                 "data_storage_area": "./",
                 "data_format": Rocketstore._FORMAT_NATIVE
             })
-        '''
+        """
+
+        if "debug" in options and isinstance(options["debug"], bool):
+            if options["debug"] == True:
+                logging.getLogger().setLevel(logging.DEBUG)
+            else:
+                logging.getLogger().setLevel(logging.ERROR)
 
         if "data_format" in options:
-            if options["data_format"] in [self._FORMAT_JSON, self._FORMAT_XML, self._FORMAT_NATIVE]:
+            if options["data_format"] in [
+                self._FORMAT_JSON,
+                self._FORMAT_XML,
+                self._FORMAT_NATIVE,
+            ]:
                 self.data_format = options.get(
                     "data_format", self._FORMAT_JSON)
             else:
@@ -95,23 +110,29 @@ class Rocketstore:
             if isinstance(options.get("data_storage_area"), str):
                 self.data_storage_area = options["data_storage_area"]
                 try:
-                    os.makedirs(os.path.abspath(self.data_storage_area),
-                                mode=0o775, exist_ok=True)
+                    os.makedirs(
+                        os.path.abspath(self.data_storage_area),
+                        mode=0o775,
+                        exist_ok=True,
+                    )
                 except OSError as e:
                     if e.errno != errno.EEXIST:
                         raise Exception(
-                            f"Unable to create data storage directory '{self.data_storage_area}': {e}")
+                            f"Unable to create data storage directory '{self.data_storage_area}': {e}"
+                        )
             else:
                 raise ValueError("Data storage area must be a directory path")
 
-        if "lock_retry_interval" in options and isinstance(options["lock_retry_interval"], int):
+        if "lock_retry_interval" in options and isinstance(
+            options["lock_retry_interval"], int
+        ):
             self.lock_retry_interval = options.get("lock_retry_interval", 13)
 
         if "lock_files" in options and isinstance(options["lock_files"], bool):
             self.lock_files = options.get("lock_files", True)
 
     def post(self, collection=None, key=None, record=None, flags=0) -> any:
-        '''
+        """
         Post a data record (Insert or overwrite)
         If keyCache exists for the given collection, entries are added.
         @collection: collection name
@@ -123,20 +144,19 @@ class Rocketstore:
                 {'key': '6-test-1', 'count': 1}
             _ADD_GUID: add Globally Unique IDentifier to key
                 {'key': '5e675199-7680-4000-856b--test-1', 'count': 1}
-        '''
+        """
         collection = str(collection or "") if collection else ""
 
         if len(collection) < 1 or not collection or collection == "":
             raise ValueError("No valid collection name given")
 
         if identifier_name_test(collection) == False:
-            raise ValueError(
-                "Collection name contains illegal characters")
+            raise ValueError("Collection name contains illegal characters")
 
         # Remove wildcards (unix only)
         if isinstance(key, int):
             key = file_name_wash(
-                str(key)+"").replace(r"[\*\?]", "") if key else ""
+                str(key) + "").replace(r"[\*\?]", "") if key else ""
 
         flags = flags if isinstance(flags, int) else 0
 
@@ -168,27 +188,32 @@ class Rocketstore:
             raise ValueError("Sorry, that data format is not supported")
 
         # Store key in cash
-        if isinstance(self.key_cache.get(collection), list) and key not in self.key_cache[collection]:
+        if (
+            isinstance(self.key_cache.get(collection), list)
+            and key not in self.key_cache[collection]
+        ):
             self.key_cache[collection].append(key)
 
         return {"key": key, "count": 1}
 
-    def get(self, collection=None, key=None, flags=0, min_time=None, max_time=None) -> any:
-        '''
-         * Get one or more records or list all collections (or delete it)
+    def get(
+        self, collection=None, key=None, flags=0, min_time=None, max_time=None
+    ) -> any:
+        """
+        * Get one or more records or list all collections (or delete it)
 
-            Generate a list:
-                get collection key => list of one key
-                get collection key wildcard => read to cash, filter to list
-                get collections => no collection + key wildcard => read (no cashing), filter to list.
+           Generate a list:
+               get collection key => list of one key
+               get collection key wildcard => read to cash, filter to list
+               get collections => no collection + key wildcard => read (no cashing), filter to list.
 
-            Cashing:
-            Whenever readdir is called, keys are stores in keyCache, pr. collection.
-            The keyCache is maintained whenever a record is deleted or added.
-            One exception are searches in the root (list of collections etc.), which must be read each time.
+           Cashing:
+           Whenever readdir is called, keys are stores in keyCache, pr. collection.
+           The keyCache is maintained whenever a record is deleted or added.
+           One exception are searches in the root (list of collections etc.), which must be read each time.
 
-            NB: Files may have been removed manually and should be removed from the cache
-        '''
+           NB: Files may have been removed manually and should be removed from the cache
+        """
         keys = []
         uncache = []
         records = []
@@ -196,7 +221,11 @@ class Rocketstore:
 
         collection = str(collection or "") if collection else ""
 
-        if collection and len(collection) > 0 and identifier_name_test(collection) == False:
+        if (
+            collection
+            and len(collection) > 0
+            and identifier_name_test(collection) == False
+        ):
             raise ValueError("Collection name contains illegal characters")
 
         # Check key validity
@@ -219,7 +248,11 @@ class Rocketstore:
                 try:
                     _list = os.listdir(scan_dir)
 
-                    # Update cahce
+                    # Remove .DS_Store files
+                    _list = [
+                        e for e in _list if not e.lower().endswith(".ds_store")]
+
+                    # Update cache
                     if collection and len(_list) > 0:
                         self.key_cache[collection] = _list
                 except FileNotFoundError as f:
@@ -233,62 +266,101 @@ class Rocketstore:
 
             # Wildcard search
             if key and key != "*":
-                haystack = self.key_cache[collection] if collection in self.key_cache else _list
+                haystack = (
+                    self.key_cache[collection]
+                    if collection in self.key_cache
+                    else _list
+                )
                 keys = [k for k in haystack if glob.fnmatch.fnmatch(k, key)]
             else:
                 keys = _list
 
             # Order by key value
-            if flags & (self._ORDER | self._ORDER_DESC) and keys and len(keys) > 1 and not (flags & (self._DELETE | (flags & self._COUNT))):
+            if (
+                flags & (self._ORDER | self._ORDER_DESC)
+                and keys
+                and len(keys) > 1
+                and not (flags & (self._DELETE | (flags & self._COUNT)))
+            ):
                 keys.sort()
                 if flags & self._ORDER_DESC:
                     keys.reverse()
         else:
-            if collection and isinstance(self.key_cache.get(collection), list) and key not in self.key_cache[collection]:
+            if (
+                collection
+                and isinstance(self.key_cache.get(collection), list)
+                and key not in self.key_cache[collection]
+            ):
                 keys = []
             elif key:
                 keys = [key]
 
         count = len(keys)
 
-        if len(keys) > 0 and collection and not (flags & (self._KEYS | self._COUNT | self._DELETE)):
+        if (
+            len(keys) > 0
+            and collection
+            and not (flags & (self._KEYS | self._COUNT | self._DELETE))
+        ):
             records = [None] * len(keys)
 
             for i in range(len(keys)):
                 file_name = os.path.join(scan_dir, keys[i])
 
+                # Skip .DS_Store files
+                if not file_name.lower().endswith(".ds_store"):
+                    continue
+
                 # Read JSON record file
                 if self.data_format & self._FORMAT_JSON:
                     try:
-                        with open(file_name, 'r') as file:
+                        with open(file_name, "r") as file:
+                            logging.info(f">[269] File open {file_name}")
                             records[i] = json.load(file)
                     except FileNotFoundError:
                         uncache.append(keys[i])
                         records[i] = "*deleted*"
                         count -= 1
+                        logging.warning(f">[269] File not found{file_name}")
                     except json.JSONDecodeError:
-                        records[i] = ""
+                        records[i] = "*format*"
+                        logging.warning(f">[272] Not JSON format {file_name}")
                 else:
                     raise ValueError(
                         "Sorry, that data format is not supported")
 
         elif flags & self._DELETE:
             # DELETE RECORDS
-            print(f"276 DELETE: c({collection}) k({key})")
+            logging.info(f"276 DELETE: c({collection}) k({key})")
 
-            if not collection and not key or collection == "" and not key or collection == "" and key == "":
-                print("# Delete database (all collections) return count 1")
+            if (
+                not collection
+                and not key
+                or collection == ""
+                and not key
+                or collection == ""
+                and key == ""
+            ):
+                logging.info(
+                    "# Delete database (all collections) return count 1")
                 try:
                     if os.path.exists(self.data_storage_area):
                         shutil.rmtree(self.data_storage_area)
                         self.key_cache = {}
                         count = 1
                 except Exception as e:
-                    print(f"Error deleting directory: {e}")
+                    logging.info(f"Error deleting directory: {e}")
                     raise e
 
-            elif collection and not key or collection == "" and not key or collection and key == "":
-                print("# Delete complete collection")
+            elif (
+                collection
+                and not key
+                or collection == ""
+                and not key
+                or collection
+                and key == ""
+            ):
+                logging.info("# Delete complete collection")
                 fileName = os.path.join(self.data_storage_area, collection)
                 fileNameSeq = os.path.join(
                     self.data_storage_area, f"{collection}_seq")
@@ -314,7 +386,7 @@ class Rocketstore:
 
             # Delete records and  ( collection and sequences found with wildcards )
             elif keys:
-                print("delete wildcat")
+                logging.info("delete wildcat")
                 for key in keys:
                     # Remove files with regexp
                     if "*" in key or "?" in key:
@@ -332,8 +404,8 @@ class Rocketstore:
                     else:
                         uncache.extend([key])
 
-            elif re.search(r'[\*\?]', key):
-                print("WILD con caracteres especiales")
+            elif re.search(r"[\*\?]", key):
+                logging.info("WILD con caracteres especiales")
                 fileNamesWild = glob.glob(os.path.join(scan_dir, key))
                 for file in fileNamesWild:
                     os.remove(file)
@@ -343,32 +415,34 @@ class Rocketstore:
         if uncache:
             if collection in self.key_cache:
                 self.key_cache[collection] = [
-                    e for e in self.key_cache[collection] if e not in uncache]
+                    e for e in self.key_cache[collection] if e not in uncache
+                ]
 
             if keys != self.key_cache.get(collection):
                 keys = [e for e in keys if e not in uncache]
 
             if records:
-                records = [e for e in records if e != "*deleted*"]
+                records = [e for e in records if e !=
+                           "*deleted*" or e != "*format*"]
 
-        result = {'count': count}
-        if result['count'] and keys and not (flags & (self._COUNT | self._DELETE)):
-            result['key'] = keys
+        result = {"count": count}
+        if result["count"] and keys and not (flags & (self._COUNT | self._DELETE)):
+            result["key"] = keys
         if records:
-            result['result'] = records
+            result["result"] = records
 
         return result
 
     def delete(self, collection=None, key=None):
-        '''
+        """
         Delete one or more records or collections
-        '''
+        """
         return self.get(collection=collection, key=key, flags=self._DELETE)
 
     def sequence(self, seq_name: str) -> int:
-        '''
+        """
         Get and auto incremented sequence or create it
-        '''
+        """
         if not seq_name:
             raise ValueError("Sequence name is invalid")
 
@@ -400,10 +474,10 @@ class Rocketstore:
                     file.write("1")
                 sequence = 1
             except Exception as e:
-                print(f"Error creating file: {e}")
+                logging.warning(f"Error creating file: {e}")
                 raise e
         except Exception as e:
-            print(f"Error reading/writing file: {e}")
+            logging.warning(f"Error reading/writing file: {e}")
             raise e
 
         if self.lock_files:
