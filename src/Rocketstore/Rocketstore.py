@@ -150,7 +150,8 @@ class Rocketstore:
         if len(collection) < 1 or not collection or collection == "":
             raise ValueError("No valid collection name given")
 
-        if identifier_name_test(collection) == False:
+        # True = is have illegal characters
+        if identifier_name_test(collection) == True:
             raise ValueError("Collection name contains illegal characters")
 
         # Remove wildcards (unix only)
@@ -221,10 +222,11 @@ class Rocketstore:
 
         collection = str(collection or "") if collection else ""
 
+        # identifier_name_test - True = is have illegal characters
         if (
             collection
             and len(collection) > 0
-            and identifier_name_test(collection) == False
+            and identifier_name_test(collection) == True
         ):
             raise ValueError("Collection name contains illegal characters")
 
