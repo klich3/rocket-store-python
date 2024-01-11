@@ -205,3 +205,10 @@ twine upload dist/*
 
 ***Live:***
 No need do nothing GitHub have Workflow action its publish auto
+
+----
+
+### Local dev
+
+In root folder run create virtual env `virtualenv ./venv && . ./venv/bin/activate`
+and run `pip install -e .`
