@@ -215,6 +215,9 @@ class Rocketstore:
 
            NB: Files may have been removed manually and should be removed from the cache
         """
+
+        # TODO: add regexpt search in key
+
         keys = []
         uncache = []
         records = []
