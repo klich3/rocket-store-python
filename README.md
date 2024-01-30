@@ -206,9 +206,15 @@ twine upload dist/*
 ***Live:***
 No need do nothing GitHub have Workflow action its publish auto
 
-----
+---
 
 ### Local dev
 
 In root folder run create virtual env `virtualenv ./venv && . ./venv/bin/activate`
 and run `pip install -e .`
+
+---
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=klich3/rocket-store-python&type=Date)](https://star-history.com/#klich3/rocket-store-python&Date)
