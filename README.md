@@ -107,10 +107,24 @@ Find and retrieve records, in a collection.
 
 ```python
 rs.get(collection="delete_fodders1")
+
 # or
 rs.get("delete_fodders1")
-# Get wildcar
+
+# Get wildcard
 rs.get("delete_*")
+
+# Get wildcard in collection
+rs.get("*")
+
+# Get wildcard in key (see sample in Samples/queries.py)
+rs.get("delete_fodders1", "*")
+
+# Get only auto incremented rows (see sample in Samples/queries.py)
+rs.get("delete_fodders1", "?")
+
+# get only keys
+rs.get("delete_fodders1", "*", Rocketstore._KEYS)
 ```
 
 __Collection__ to search. If no collection name is given, get will return a list of data base assets: collections and sequences etc.
