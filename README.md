@@ -41,6 +41,7 @@ Compare Rocket-Store, SQL and file system terms:
 - Support for file locking.
 - Support for creating data storage directories.
 - Support for adding auto incrementing sequences and GUIDs to keys.
+- **NEW: Support for Markdown format (YAML frontmatter)** - Store records as human-readable markdown files
 
 
 ## Usage
@@ -177,7 +178,7 @@ Can be called at any time to change the configuration values of the initialized 
 
 __Options__:
   * data_storage_area: The directory where the database resides. The default is to use a subdirectory to the temporary directory provided by the operating system. If that doesn't work, the DOCUMENT_ROOT directory is used.
-  * data_format: Specify which format the records are stored in. Values are: _FORMAT_NATIVE - default. and RS_FORMAT_JSON - Use JSON data format.
+  * data_format: Specify which format the records are stored in. Values are: _FORMAT_NATIVE - default, _FORMAT_JSON - Use JSON data format, _FORMAT_MD - Use Markdown format with YAML frontmatter.
 
 ```python
 rs.options(data_format=Rocketstore._FORMAT_JSON)
@@ -195,6 +196,137 @@ The GUID is a combination of a timestamp and a random sequence, formatet in acco
 
 If ID's are generated more than 1 millisecond apart, they are 100% unique.
 If two ID's are generated at shorter intervals, the likelyhod of collission is up to 1 of 10^15.
+
+---
+
+## Markdown Format Support
+
+Rocketstore now supports storing records as Markdown files with YAML frontmatter. This is ideal for:
+
+- **AI Memories**: Store conversation history in human-readable format
+- **Knowledge Base**: Create editable documentation
+- **Skill Storage**: Compatible with Claude skills and search tools
+
+### Using Markdown Format
+
+```python
+from Rocketstore import Rocketstore
+
+rs = Rocketstore(**{
+    "data_storage_area": "./memories",
+    "data_format": Rocketstore._FORMAT_MD
+})
+
+# Store a record - it will be saved as a .md file with YAML frontmatter
+rs.post("conversations", "session_1", {
+    "user": "Alice",
+    "topic": "Python",
+    "_content": "## Question\nHow do I use classes?\n\n## Answer\nHere's how..."
+})
+```
+
+The stored file will look like:
+```markdown
+---
+user: Alice
+topic: Python
+---
+
+## Question
+How do I use classes?
+
+## Answer
+Here's how...
+```
+
+### Auto-Detection
+
+When using `_FORMAT_JSON`, Rocketstore will automatically detect and parse Markdown files if:
+- The file has `.md` extension
+- The file contains valid YAML frontmatter
+
+This allows mixed storage: some records as JSON, others as Markdown.
+
+### Use Cases with AI
+
+#### 1. Local Memories for Claude
+
+Compatible with [rocket-store-local-memories-python](https://github.com/klich3/rocket-store-lcoal-memories-python):
+
+```python
+# Store conversation context
+rs.post("memories", "", {
+    "session_id": "abc123",
+    "type": "conversation",
+    "tags": ["python", "help"],
+    "_content": "User asked about Python classes..."
+}, Rocketstore._ADD_GUID)
+```
+
+#### 2. Skill Search Integration
+
+Works with [skill-search-in-files-ack](https://github.com/klich3/skill-search-in-files-ack):
+
+```python
+# Store skills as searchable markdown
+rs.post("skills", "python_basics", {
+    "skill_name": "Python Basics",
+    "tags": ["python", "programming"],
+    "_content": "## Variables\nIn Python, variables..."
+})
+
+# Search using wildcards
+skills = rs.get("skills", "*python*")
+```
+
+#### Example: Skill Storage with YAML Frontmatter
+
+Store skills as markdown documents with YAML frontmatter:
+
+```markdown
+---
+skill_name: Markdown Parser
+type: skill
+version: '2.0'
+author: AI Assistant
+tags:
+- markdown
+- parser
+- yaml
+---
+
+## Description
+Parse markdown files with YAML frontmatter
+
+## Usage Examples
+### Example 1
+```
+parse_markdown('---\ntitle: Test\n---') -> {'title': 'Test'}
+```
+
+## Metadata
+- Created: 2025-01-15
+- Last Updated: now
+```
+
+Store and retrieve:
+
+```python
+# Store a skill
+rs.post("skills", "markdown_parser", {
+    "skill_name": "Markdown Parser",
+    "type": "skill",
+    "version": "2.0",
+    "tags": ["markdown", "parser", "yaml"],
+    "_content": "## Description\nParse markdown files..."
+})
+
+# Search skills by tag
+skills = rs.get("skills", "*")
+for skill in skills["result"]:
+    if "parser" in skill.get("tags", []):
+        print(f"Found skill: {skill['skill_name']}")
+```
 
 ---
 
