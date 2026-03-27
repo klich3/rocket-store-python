@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: Rocket-Store
-Version: 0.0.10
+Version: 0.0.11
 Summary: Using the filesystem as a searchable database.
 Author-email: Anton Sychev <anton@sychev.xyz>
 License:   Rocket Store
@@ -323,6 +323,55 @@ rs.post("skills", "python_basics", {
 skills = rs.get("skills", "*python*")
 ```
 
+#### Example: Skill Storage with YAML Frontmatter
+
+Store skills as markdown documents with YAML frontmatter:
+
+```markdown
+---
+skill_name: Markdown Parser
+type: skill
+version: '2.0'
+author: AI Assistant
+tags:
+- markdown
+- parser
+- yaml
+---
+
+## Description
+Parse markdown files with YAML frontmatter
+
+## Usage Examples
+### Example 1
+```
+parse_markdown('---\ntitle: Test\n---') -> {'title': 'Test'}
+```
+
+## Metadata
+- Created: 2025-01-15
+- Last Updated: now
+```
+
+Store and retrieve:
+
+```python
+# Store a skill
+rs.post("skills", "markdown_parser", {
+    "skill_name": "Markdown Parser",
+    "type": "skill",
+    "version": "2.0",
+    "tags": ["markdown", "parser", "yaml"],
+    "_content": "## Description\nParse markdown files..."
+})
+
+# Search skills by tag
+skills = rs.get("skills", "*")
+for skill in skills["result"]:
+    if "parser" in skill.get("tags", []):
+        print(f"Found skill: {skill['skill_name']}")
+```
+
 ---
 
 ### Contribute
@@ -347,9 +396,15 @@ twine upload dist/*
 ***Live:***
 No need do nothing GitHub have Workflow action its publish auto
 
-----
+---
 
 ### Local dev
 
 In root folder run create virtual env `virtualenv ./venv && . ./venv/bin/activate`
 and run `pip install -e .`
+
+---
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=klich3/rocket-store-python&type=Date)](https://star-history.com/#klich3/rocket-store-python&Date)
