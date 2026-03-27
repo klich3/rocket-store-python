@@ -25,6 +25,7 @@ Terminology:
 """
 
 from .utils.files import file_lock, file_unlock, identifier_name_test, file_name_wash
+from .utils import markdown as md_utils
 import os
 import json
 import re
@@ -63,6 +64,7 @@ class Rocketstore:
     _FORMAT_NATIVE = 0x02  # Store data in native format (JSON)
     _FORMAT_XML = 0x04  # Store data in XML format
     _FORMAT_PHP = 0x08  # Store data in PHP format
+    _FORMAT_MD = 0x100  # Store data in Markdown format (YAML frontmatter)
 
     data_storage_area: str = os.path.join(os.path.sep, "tmp", "rsdb")
 
@@ -95,11 +97,13 @@ class Rocketstore:
                 logging.getLogger().setLevel(logging.ERROR)
 
         if "data_format" in options:
-            if options["data_format"] in [
+            valid_formats = [
                 self._FORMAT_JSON,
                 self._FORMAT_XML,
                 self._FORMAT_NATIVE,
-            ]:
+                self._FORMAT_MD,
+            ]
+            if options["data_format"] in valid_formats:
                 self.data_format = options.get(
                     "data_format", self._FORMAT_JSON)
             else:
@@ -145,7 +149,11 @@ class Rocketstore:
             _ADD_GUID: add Globally Unique IDentifier to key
                 {'key': '5e675199-7680-4000-856b--test-1', 'count': 1}
         """
-        collection = str(collection or "") if collection else ""
+        # Check if collection is a string type (not int, float, etc.)
+        if not isinstance(collection, str):
+            raise ValueError("No valid collection name given")
+
+        collection = collection or ""
 
         if len(collection) < 1 or not collection or collection == "":
             raise ValueError("No valid collection name given")
@@ -185,6 +193,18 @@ class Rocketstore:
 
             with open(file_name, "w") as file:
                 json.dump(record, file)
+        elif self.data_format & self._FORMAT_MD:
+            os.makedirs(dir_to_write, mode=0o775, exist_ok=True)
+            
+            # Add .md extension if not present
+            if not key.endswith(".md"):
+                key += ".md"
+            
+            file_name = os.path.join(dir_to_write, key)
+            
+            with open(file_name, "w") as file:
+                md_content = md_utils.serialize_markdown(record, "frontmatter")
+                file.write(md_content)
         else:
             raise ValueError("Sorry, that data format is not supported")
 
@@ -223,6 +243,10 @@ class Rocketstore:
         records = []
         count = 0
 
+        # Check if collection is a string type (not int, float, etc.)
+        if collection is not None and not isinstance(collection, str):
+            raise ValueError("No valid collection name given")
+
         collection = str(collection or "") if collection else ""
 
         # identifier_name_test - True = is have illegal characters
@@ -238,6 +262,14 @@ class Rocketstore:
             key = ""
         else:
             key = file_name_wash(str(key)).replace(r"[*]{2,}", "*")
+
+        # Determine if we need to add .md extension
+        # For markdown format, always add .md if no wildcards
+        # For JSON format, we'll try both with and without .md
+        original_key = key
+        if self.data_format & self._FORMAT_MD and key and not any(c in key for c in "*?"):
+            if not key.endswith(".md"):
+                key += ".md"
 
         scan_dir = os.path.abspath(os.path.join(
             self.data_storage_area, collection))
@@ -277,6 +309,9 @@ class Rocketstore:
                     else _list
                 )
                 keys = [k for k in haystack if glob.fnmatch.fnmatch(k, key)]
+                # If no match found and key doesn't have .md extension, try with .md
+                if not keys and not key.endswith(".md"):
+                    keys = [k for k in haystack if glob.fnmatch.fnmatch(k, key + ".md")]
             else:
                 keys = _list
 
@@ -312,20 +347,55 @@ class Rocketstore:
             for i in range(len(keys)):
                 file_name = os.path.join(scan_dir, keys[i])
 
-                # Read JSON record file
+                # Read record file
                 if self.data_format & self._FORMAT_JSON:
                     try:
                         with open(file_name, "r") as file:
                             logging.info(f">[269] File open {file_name}")
                             records[i] = json.load(file)
                     except FileNotFoundError:
+                        # Try with .md extension for mixed mode
+                        md_file_name = file_name + ".md"
+                        if os.path.exists(md_file_name):
+                            with open(md_file_name, "r") as md_file:
+                                content = md_file.read()
+                                records[i] = md_utils.parse_markdown(content)
+                        else:
+                            uncache.append(keys[i])
+                            records[i] = "*deleted*"
+                            count -= 1
+                            logging.warning(f">[269] File not found{file_name}")
+                    except json.JSONDecodeError:
+                        # Try parsing as markdown
+                        try:
+                            with open(file_name, "r") as file:
+                                content = file.read()
+                                parsed = md_utils.parse_markdown(content)
+                                # Only use markdown parse result if it has actual frontmatter
+                                # Otherwise return empty string for backward compatibility
+                                if parsed and len(parsed) > 1:
+                                    records[i] = parsed
+                                else:
+                                    records[i] = ""
+                        except Exception:
+                            records[i] = ""
+                            logging.warning(f">[272] Not valid format {file_name}")
+                elif self.data_format & self._FORMAT_MD:
+                    try:
+                        # Try .md extension first
+                        md_file_name = file_name if file_name.endswith(".md") else file_name + ".md"
+                        with open(md_file_name, "r") as file:
+                            logging.info(f">[MD] File open {md_file_name}")
+                            content = file.read()
+                            records[i] = md_utils.parse_markdown(content)
+                    except FileNotFoundError:
                         uncache.append(keys[i])
                         records[i] = "*deleted*"
                         count -= 1
-                        logging.warning(f">[269] File not found{file_name}")
-                    except json.JSONDecodeError:
+                        logging.warning(f">[MD] File not found {md_file_name}")
+                    except Exception as e:
                         records[i] = "*format*"
-                        logging.warning(f">[272] Not JSON format {file_name}")
+                        logging.warning(f">[MD] Parse error {md_file_name}: {e}")
                 else:
                     raise ValueError(
                         "Sorry, that data format is not supported")
@@ -423,8 +493,7 @@ class Rocketstore:
                 keys = [e for e in keys if e not in uncache]
 
             if records:
-                records = [e for e in records if e !=
-                           "*deleted*" or e != "*format*"]
+                records = [e for e in records if e != "*deleted*"]
 
         result = {"count": count}
         if result["count"] and keys and not (flags & (self._COUNT | self._DELETE)):
@@ -438,6 +507,14 @@ class Rocketstore:
         """
         Delete one or more records or collections
         """
+        # Check if collection is a string type (not int, float, etc.)
+        if collection is not None and not isinstance(collection, str):
+            raise ValueError("No valid collection name given")
+
+        # Check for purely numeric collection names
+        if collection and collection.isdigit():
+            raise ValueError("No valid collection name given")
+
         return self.get(collection=collection, key=key, flags=self._DELETE)
 
     def sequence(self, seq_name: str) -> int:

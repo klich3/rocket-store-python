@@ -4,3 +4,4 @@
 #
 #    pip-compile pyproject.toml
 #
+pyyaml>=6.0

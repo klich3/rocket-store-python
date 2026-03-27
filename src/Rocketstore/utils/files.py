@@ -57,13 +57,23 @@ def identifier_name_test(name: any) -> bool:
     '''
     check match name with regex
     its search for any non-ascii symbols and reserved words in javascript or combinations of them
+    also checks for invalid filesystem characters
     '''
 
+    # Check for JavaScript reserved words and non-ASCII characters
     pattern = r"^(?!(?:do|if|in|for|let|new|try|var|case|else|enum|eval|null|this|true|void|with|await|break|catch|class|const|false|super|throw|while|yield|delete|export|import|public|return|static|switch|typeof|default|extends|finally|package|private|continue|debugger|function|arguments|interface|protected|implements|instanceof)\b)[^\x20-\x7E]|[^[:ascii:]]"
 
     check = re.search(pattern, name, re.MULTILINE | re.IGNORECASE)
+    if check:
+        return True
 
-    return bool(check)
+    # Check for invalid filesystem characters
+    # These characters are invalid in Windows and/or Unix file systems
+    invalid_chars = r'[<>"|?*\x00\x0a\x0d]'
+    if re.search(invalid_chars, name):
+        return True
+
+    return False
 
 
 def file_name_wash(name, preserve_wildcards=False) -> str:
